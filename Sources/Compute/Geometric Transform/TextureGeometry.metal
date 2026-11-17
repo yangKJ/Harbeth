@@ -35,20 +35,22 @@ kernel void HarbethTextureGeometry(texture2d<half, access::write> output [[textu
     output.write(input.sample(sampling, sourceUV), position);
 }
 
-kernel void HarbethTextureOverlay(texture2d<half, access::write> output [[texture(0)]],
-                                  texture2d<half, access::read> input [[texture(1)]],
-                                  texture2d<half, access::sample> overlay [[texture(2)]],
+kernel void HarbethTextureOverlay(texture2d<float, access::write> output [[texture(0)]],
+                                  texture2d<float, access::read> input [[texture(1)]],
+                                  texture2d<float, access::sample> overlay [[texture(2)]],
                                   constant float4 &rect [[buffer(0)]],
+                                  constant float &halfOutput [[buffer(1)]],
                                   uint2 position [[thread_position_in_grid]]) {
     if (position.x >= output.get_width() || position.y >= output.get_height()) return;
-    const half4 base = input.read(position);
+    const float4 base = input.read(position);
     const float2 uv = (float2(position) + 0.5f) / float2(output.get_width(), output.get_height());
     const float2 local = (uv - rect.xy) / rect.zw;
     if (any(local < 0.0f) || any(local > 1.0f)) {
-        output.write(base, position);
+        output.write(halfOutput > 0.5f ? float4(half4(base)) : base, position);
         return;
     }
     constexpr sampler sampling(coord::normalized, address::clamp_to_edge, filter::linear);
-    const half4 layer = overlay.sample(sampling, local);
-    output.write(layer + base * (1.0h - layer.a), position);
+    const float4 layer = overlay.sample(sampling, local);
+    const float4 result = layer + base * (1.0f - layer.a);
+    output.write(halfOutput > 0.5f ? float4(half4(result)) : result, position);
 }

@@ -10,7 +10,7 @@ import MetalKit
 
 /// 增强版颜色加深混合模式
 /// Enhanced color burn blend mode
-public struct C7ColorBurnEnhancedBlend: C7FilterProtocol {
+public struct C7ColorBurnEnhancedBlend: C7FilterProtocol, BlitProtocol {
     
     public static let range: ParameterRange<Float, Self> = .init(min: 0.1, max: 2.0, value: 1.0)
     
@@ -21,17 +21,28 @@ public struct C7ColorBurnEnhancedBlend: C7FilterProtocol {
     @Clamping(range.min...range.max) public var strength: Float = range.value
     
     public var modifier: ModifierEnum {
-        return .compute(kernel: "C7ColorBurnEnhancedBlend")
+        return isBypassed ? .blit : .compute(kernel: "C7ColorBurnEnhancedBlend")
     }
     
     public var factors: [Float] {
-        return [intensity, strength]
+        return [intensity.isFinite ? intensity : 0, strength.isFinite ? strength : 1]
     }
     
     public var otherInputTextures: C7InputTextures {
-        return blendTexture == nil ? [] : [blendTexture!]
+        return isBypassed ? [] : [blendTexture!]
     }
     
+    private var isBypassed: Bool { blendTexture == nil || !intensity.isFinite || intensity <= 0 }
+    public var kernelPixelContract: KernelPixelContract {
+        .init(inputAlphaExpectation: isBypassed ? .preserveInput : .premultiplied, precision: .float32,
+              dynamicRangeBehavior: .preservesExtendedRange, samplingFootprint: isBypassed ? .point : .dynamic,
+              coordinateDependency: isBypassed ? .local : .fullImage, globalDependency: isBypassed ? .none : .imageDimensions)
+    }
+    public var kernelOutputContract: RenderOutputContract { isBypassed ? .preserveInput : .premultipliedColorInput }
+    public func encode(commandBuffer: MTLCommandBuffer, textures: [MTLTexture]) throws -> MTLTexture {
+        try PipelineIdentityFilter().encode(commandBuffer: commandBuffer, textures: textures)
+    }
+
     private let blendTexture: MTLTexture?
     
     public init(with image: C7Image, strength: Float = range.value, intensity: Float = 1.0) {

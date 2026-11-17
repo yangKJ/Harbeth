@@ -1,36 +1,21 @@
-//
-//  C7ColorBurnEnhancedBlend.metal
-//  Harbeth
-//
-//  Created by Condy on 2026/3/7.
-//
-
+// 由 Condy 维护。增强加深方程保持，前景覆盖调制颜色且不改变背景Alpha。
 #include <metal_stdlib>
 using namespace metal;
-
-kernel void C7ColorBurnEnhancedBlend(texture2d<half, access::write> outputTexture [[texture(0)]],
-                                     texture2d<half, access::read> inputTexture [[texture(1)]],
-                                     texture2d<half, access::sample> blendTexture [[texture(2)]],
-                                     constant float *intensity [[buffer(0)]],
-                                     constant float *strength [[buffer(1)]],
-                                     uint2 grid [[thread_position_in_grid]]) {
-    const half4 inColor = inputTexture.read(grid);
-    
-    constexpr sampler quadSampler(mag_filter::linear, min_filter::linear);
-    float2 textureCoordinate = (float2(grid) + 0.5) / float2(outputTexture.get_width(), outputTexture.get_height());
-    const half4 blendColor = blendTexture.sample(quadSampler, textureCoordinate);
-    
-    half4 outColor;
-    
-    half epsilon = 0.0001h;
-    half strengthHalf = half(*strength);
-    
-    outColor.r = 1.0h - min(1.0h, (1.0h - inColor.r) / max(blendColor.r * strengthHalf, epsilon));
-    outColor.g = 1.0h - min(1.0h, (1.0h - inColor.g) / max(blendColor.g * strengthHalf, epsilon));
-    outColor.b = 1.0h - min(1.0h, (1.0h - inColor.b) / max(blendColor.b * strengthHalf, epsilon));
-    outColor.a = inColor.a;
-    
-    outColor = mix(inColor, outColor, half(*intensity));
-    
-    outputTexture.write(outColor, grid);
+kernel void C7ColorBurnEnhancedBlend(
+    texture2d<float, access::write> output [[texture(0)]], texture2d<float, access::read> input [[texture(1)]],
+    texture2d<float, access::sample> foreground [[texture(2)]], constant float &intensity [[buffer(0)]],
+    constant float &strength [[buffer(1)]], constant float &halfOutput [[buffer(2)]], uint2 grid [[thread_position_in_grid]]) {
+    if (grid.x >= output.get_width() || grid.y >= output.get_height()) return;
+    const float4 source = input.read(grid);
+    if (!isfinite(intensity) || intensity <= 0.0f) { output.write(halfOutput > 0.5f ? float4(half4(source)) : source, grid); return; }
+    if (source.a <= 0.0f) { output.write(float4(0), grid); return; }
+    constexpr sampler sampling(coord::normalized, address::clamp_to_edge, filter::linear);
+    const float4 layer = foreground.sample(sampling, (float2(grid) + 0.5f) / float2(output.get_width(), output.get_height()));
+    if (layer.a <= 0.0f) { output.write(halfOutput > 0.5f ? float4(half4(source)) : source, grid); return; }
+    const float3 base = source.rgb / source.a, blend = layer.rgb / layer.a;
+    const float3 mapped = 1.0f - min(1.0f, (1.0f - base) / max(blend * strength, float3(float(half(0.0001f)))));
+    const float amount = intensity * clamp(layer.a, 0.0f, 1.0f);
+    const float3 mixed = amount >= 1.0f ? mapped : base * (1.0f - amount) + mapped * amount;
+    const float4 result = float4(mixed * source.a, source.a);
+    output.write(halfOutput > 0.5f ? float4(half4(result)) : result, grid);
 }

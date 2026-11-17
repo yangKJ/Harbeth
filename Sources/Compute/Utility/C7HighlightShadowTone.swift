@@ -34,23 +34,28 @@ public struct C7HighlightShadowTone: C7FilterPipelineProtocol {
     /// 用于建立局部亮度参考的高斯模糊半径。0 表示直接使用原图作为参考。
     @Clamping(radiusRange.min...radiusRange.max) public var radius: Float = radiusRange.value
     
+    private var effectiveRadius: Float { radius.isFinite ? radius : 0 }
+    private var parameters: [Float] { [shadows, highlights, midtones, contrast].map { $0.isFinite ? $0 : 0 } }
+    private var usesIdentity: Bool {
+        parameters.allSatisfy { $0 == 0 } && BuiltinKernelAdmission.isUnmodified(["C7HighlightShadowTone", "C7GaussianBlur"])
+    }
+
     public var pipelineFilters: [C7FilterProtocol] {
-        if radius == 0 {
+        if usesIdentity { return [] }
+        if effectiveRadius == 0 {
             return [C7GaussianBlur(radius: 0)]
         }
-        return [MPSGaussianBlur(radius: radius)]
+        return [MPSGaussianBlur(radius: effectiveRadius)]
     }
 
     public var kernelPixelContract: KernelPixelContract {
         KernelPixelContract(
             inputAlphaExpectation: .premultiplied,
             outputAlpha: .premultiplied,
-            precision: .float16,
+            precision: usesIdentity ? .float32 : .float16,
             dynamicRangeBehavior: .preservesExtendedRange,
-            samplingFootprint: .neighborhood(
-                // 非线性影调会放大模糊参考的截断误差，8σ覆盖窄画布与嵌套混合的量化边界。
-                radius: Int(ceil(radius)) * 8
-            )
+            // 非线性影调沿用8σ；整数化前必须取得有限半径。
+            samplingFootprint: usesIdentity ? .point : .neighborhood(radius: Int(ceil(effectiveRadius)) * 8)
         )
     }
     
@@ -69,9 +74,10 @@ public struct C7HighlightShadowTone: C7FilterPipelineProtocol {
     }
 
     public func makeFinalFilter(otherInputTextures: C7InputTextures?) -> C7FilterProtocol? {
-        PipelineLeafFilter(
+        if usesIdentity { return PipelineIdentityFilter() }
+        return PipelineLeafFilter(
             modifier: .compute(kernel: "C7HighlightShadowTone"),
-            factors: [shadows, highlights, midtones, contrast],
+            factors: parameters,
             otherInputTextures: otherInputTextures ?? []
         )
     }

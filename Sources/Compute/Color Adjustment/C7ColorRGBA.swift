@@ -25,9 +25,13 @@ public struct C7ColorRGBA: C7FilterProtocol {
 
     public var kernelParameterBindings: [KernelParameterBinding] {
         [
-            KernelParameterBinding(name: "intensity", index: 0, stage: .compute, value: .float(intensity)),
+            KernelParameterBinding(name: "intensity", index: 0, stage: .compute, value: .float(intensity.isFinite ? intensity : 0)),
             KernelParameterBinding(name: "color", index: 1, stage: .compute, value: .float4(color.c7.toSIMD4()))
         ]
+    }
+
+    public var kernelPixelContract: KernelPixelContract {
+        .init(precision: .float32, dynamicRangeBehavior: .preservesExtendedRange, samplingFootprint: .point)
     }
 
     public init(color: C7Color = .white, intensity: Float = 1.0) {

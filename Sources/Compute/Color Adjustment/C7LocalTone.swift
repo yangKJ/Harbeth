@@ -68,7 +68,7 @@ public struct C7LocalTone: C7MetalCommandEncodingProtocol {
         )
         try statistics.encodeClear(commandBuffer: context.commandBuffer)
         try statistics.encodeAccumulate(source: context.sourceTexture, origin: .zero, commandBuffer: context.commandBuffer)
-        try statistics.encodePrepare(commandBuffer: context.commandBuffer)
+        try statistics.encodePrepare(commandBuffer: context.commandBuffer, needsLookup: amount >= 0 || !BuiltinKernelAdmission.isUnmodified(["C7CLAHEBuildLookupTable"]))
         try statistics.encodeApply(
             source: context.sourceTexture,
             destination: context.destinationTexture,
@@ -87,8 +87,8 @@ public final class LocalToneStatistics {
     private let height: Int
     private let clipLimit: Float
     private let grid: C7CLAHE.TileGridSize
-    private let histogram: MTLBuffer
-    private let sampleCounts: MTLBuffer
+    let histogram: MTLBuffer
+    let sampleCounts: MTLBuffer
     private let lookupTable: MTLBuffer
     private let percentiles: MTLBuffer
 
@@ -127,6 +127,30 @@ public final class LocalToneStatistics {
 
     public func encodeAccumulate(source: MTLTexture, origin: SIMD2<UInt32>, commandBuffer: MTLCommandBuffer) throws {
         try validate(commandBuffer, source: source, origin: origin)
+        if source.device === HarbethContext.shared.device, source.pixelFormat == .rgba16Float,
+           origin == .zero, source.width == width, source.height == height, width * height >= 4096,
+           BuiltinKernelAdmission.isUnmodified(["localToneAccumulate"]) {
+            let pipeline = try MetalCommandEnvironment(device: device).makeComputePipelineState(
+                .init(kind: .compute, primaryName: "C7CLAHEHistogramGrouped", librarySource: .harbethFramework)
+            )
+            guard let encoder = commandBuffer.makeComputeCommandEncoder() else { throw HarbethError.makeComputeCommandEncoder }
+            encoder.label = "localToneAccumulateGrouped"
+            encoder.setComputePipelineState(pipeline)
+            encoder.setTexture(source, index: 0)
+            encoder.setBuffer(histogram, offset: 0, index: 0)
+            encoder.setBuffer(sampleCounts, offset: 0, index: 1)
+            var columns = UInt32(grid.columns), rows = UInt32(grid.rows)
+            encoder.setBytes(&columns, length: 4, index: 2)
+            encoder.setBytes(&rows, length: 4, index: 3)
+            let tileWidth = (width + grid.columns - 1) / grid.columns
+            let tileHeight = (height + grid.rows - 1) / grid.rows
+            encoder.dispatchThreadgroups(
+                MTLSize(width: (tileWidth + 15) / 16, height: (tileHeight + 15) / 16, depth: grid.columns * grid.rows),
+                threadsPerThreadgroup: MTLSize(width: 16, height: 16, depth: 1)
+            )
+            encoder.endEncoding()
+            return
+        }
         let encoder = try makeEncoder("localToneAccumulate", commandBuffer)
         encoder.setTexture(source, index: 0)
         encoder.setBuffer(histogram, offset: 0, index: 0)
@@ -138,19 +162,25 @@ public final class LocalToneStatistics {
     }
 
     public func encodePrepare(commandBuffer: MTLCommandBuffer) throws {
+        try encodePrepare(commandBuffer: commandBuffer, needsLookup: true)
+    }
+
+    func encodePrepare(commandBuffer: MTLCommandBuffer, needsLookup: Bool) throws {
         try validate(commandBuffer)
-        let encoder = try makeEncoder("C7CLAHEBuildLookupTable", commandBuffer)
-        encoder.setBuffer(histogram, offset: 0, index: 0)
-        encoder.setBuffer(sampleCounts, offset: 0, index: 1)
-        encoder.setBuffer(lookupTable, offset: 0, index: 2)
         var columns = UInt32(grid.columns)
         var rows = UInt32(grid.rows)
-        var limit = clipLimit
-        encoder.setBytes(&columns, length: 4, index: 3)
-        encoder.setBytes(&rows, length: 4, index: 4)
-        encoder.setBytes(&limit, length: 4, index: 5)
-        dispatchGrid(encoder)
-        encoder.endEncoding()
+        if needsLookup {
+            let encoder = try makeEncoder("C7CLAHEBuildLookupTable", commandBuffer)
+            encoder.setBuffer(histogram, offset: 0, index: 0)
+            encoder.setBuffer(sampleCounts, offset: 0, index: 1)
+            encoder.setBuffer(lookupTable, offset: 0, index: 2)
+            var limit = clipLimit
+            encoder.setBytes(&columns, length: 4, index: 3)
+            encoder.setBytes(&rows, length: 4, index: 4)
+            encoder.setBytes(&limit, length: 4, index: 5)
+            dispatchGrid(encoder)
+            encoder.endEncoding()
+        }
 
         let percentileEncoder = try makeEncoder("localTonePercentiles", commandBuffer)
         percentileEncoder.setBuffer(histogram, offset: 0, index: 0)

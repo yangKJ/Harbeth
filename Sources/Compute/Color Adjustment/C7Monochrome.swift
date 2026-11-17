@@ -23,9 +23,15 @@ public struct C7Monochrome: C7FilterProtocol {
     
     public var factors: [Float] {
         let rgb = color.c7.toRGBA()
-        return [intensity, rgb.red, rgb.green, rgb.blue]
+        return [intensity.isFinite ? intensity : 0, rgb.red, rgb.green, rgb.blue]
     }
     
+    public var kernelPixelContract: KernelPixelContract {
+        .init(inputAlphaExpectation: .premultiplied, precision: .float32,
+              dynamicRangeBehavior: .preservesExtendedRange, samplingFootprint: .point)
+    }
+    public var kernelOutputContract: RenderOutputContract { .premultipliedColorInput }
+
     public init(intensity: Float = 1.0, color: C7Color = .zero) {
         self.intensity = intensity
         self.color = color

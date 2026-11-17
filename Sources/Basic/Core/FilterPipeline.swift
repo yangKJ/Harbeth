@@ -40,12 +40,14 @@ struct PipelineLeafFilter: C7FilterProtocol {
     let factors: [Float]
     let otherInputTextures: C7InputTextures
     let kernelParameterBindings: [KernelParameterBinding]
+    let computeKernelLibrarySource: KernelLibrarySource
 
-    init(modifier: ModifierEnum, factors: [Float] = [], otherInputTextures: C7InputTextures = [], kernelParameterBindings: [KernelParameterBinding] = []) {
+    init(modifier: ModifierEnum, factors: [Float] = [], otherInputTextures: C7InputTextures = [], kernelParameterBindings: [KernelParameterBinding] = [], librarySource: KernelLibrarySource = .automatic) {
         self.modifier = modifier
         self.factors = factors
         self.otherInputTextures = otherInputTextures
         self.kernelParameterBindings = kernelParameterBindings
+        self.computeKernelLibrarySource = librarySource
     }
 }
 
@@ -189,5 +191,46 @@ enum FilterPipelineExecutor {
             options: options,
             identifier: "FilterPipelineExecutor"
         )
+    }
+}
+
+// 仅对没有宿主或外部同名实现的内置函数应用等价执行。
+enum BuiltinKernelAdmission {
+    static func isUnmodified(_ names: [String]) -> Bool {
+        let runtime = HarbethContext.shared.runtimeDevice
+        let libraries = runtime.externalLibraries() + [runtime.defaultLibrary].compactMap { $0 }
+        return !libraries.contains { library in names.contains { library.makeFunction(name: $0) != nil } }
+    }
+}
+
+// 资源ABI与恒等执行相匹配；不能跳过引导图后仍调用需要texture(2)的合成核。
+struct PipelineIdentityFilter: C7FilterProtocol, BlitProtocol {
+    var modifier: ModifierEnum { .blit }
+    var kernelPixelContract: KernelPixelContract {
+        .init(precision: .float32, dynamicRangeBehavior: .preservesExtendedRange, samplingFootprint: .point)
+    }
+    func encode(commandBuffer: MTLCommandBuffer, textures: [MTLTexture]) throws -> MTLTexture {
+        guard textures.count >= 2 else { throw HarbethError.filterParameterInvalid("恒等执行缺少来源或目标") }
+        let output = textures[0], input = textures[1]
+        guard input.width == output.width, input.height == output.height else { throw HarbethError.textureSizeMismatch }
+        if input === output { return output }
+        if input.pixelFormat != output.pixelFormat {
+            let copy = PipelineLeafFilter(modifier: .compute(kernel: "C7PixelFormatChange"), librarySource: .harbethFramework)
+            return try copy.applyAtTexture(form: input, to: output, for: commandBuffer)
+        }
+        guard let encoder = commandBuffer.makeBlitCommandEncoder() else { throw HarbethError.makeBlitCommandEncoder }
+        encoder.copy(
+            from: input,
+            sourceSlice: 0,
+            sourceLevel: 0,
+            sourceOrigin: .init(x: 0, y: 0, z: 0),
+            sourceSize: .init(width: input.width, height: input.height, depth: 1),
+            to: output,
+            destinationSlice: 0,
+            destinationLevel: 0,
+            destinationOrigin: .init(x: 0, y: 0, z: 0)
+        )
+        encoder.endEncoding()
+        return output
     }
 }

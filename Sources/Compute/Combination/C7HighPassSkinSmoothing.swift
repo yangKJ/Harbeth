@@ -42,10 +42,24 @@ public final class C7HighPassSkinSmoothing: C7FilterPipelineProtocol {
     /// 色调曲线在输入中点处的输出值。
     @ZeroOneRange public var toneCurveOutputMidpoint: Float = defaultToneCurveOutputMidpoint
 
+    private var effectiveRadius: Float { radius.isFinite ? radius : 0 }
+    private var effectiveAmount: Float { amount.isFinite ? amount : 0 }
+    private var parameters: [Float] {
+        [effectiveAmount, detailThreshold.isFinite ? detailThreshold : Self.defaultDetailThreshold,
+         detailTransition.isFinite ? detailTransition : Self.defaultDetailTransition,
+         sharpnessFactor.isFinite ? sharpnessFactor : 0,
+         toneCurveInputMidpoint.isFinite ? toneCurveInputMidpoint : Self.defaultToneCurveInputMidpoint,
+         toneCurveOutputMidpoint.isFinite ? toneCurveOutputMidpoint : Self.defaultToneCurveOutputMidpoint]
+    }
+    private var usesIdentity: Bool {
+        effectiveAmount == 0 && BuiltinKernelAdmission.isUnmodified(["C7HighPassSkinChannelOverlay", "C7HighPassSkinSmoothingComposite", "C7GaussianBlur"])
+    }
+
     public var pipelineFilters: [C7FilterProtocol] {
-        [
+        if usesIdentity { return [] }
+        return [
             HighPassSkinChannelOverlay(),
-            radius == 0 ? C7GaussianBlur(radius: 0) : MPSGaussianBlur(radius: radius)
+            effectiveRadius == 0 ? C7GaussianBlur(radius: 0) : MPSGaussianBlur(radius: effectiveRadius)
         ]
     }
 
@@ -53,11 +67,9 @@ public final class C7HighPassSkinSmoothing: C7FilterPipelineProtocol {
         KernelPixelContract(
             inputAlphaExpectation: .premultiplied,
             outputAlpha: .premultiplied,
-            precision: .float16,
+            precision: usesIdentity ? .float32 : .float16,
             dynamicRangeBehavior: .preservesExtendedRange,
-            samplingFootprint: .neighborhood(
-                radius: max(MPSGaussianBlur.conservativeHaloRadius(for: radius), 1)
-            )
+            samplingFootprint: usesIdentity ? .point : .neighborhood(radius: max(MPSGaussianBlur.conservativeHaloRadius(for: effectiveRadius), 1))
         )
     }
 
@@ -80,30 +92,11 @@ public final class C7HighPassSkinSmoothing: C7FilterPipelineProtocol {
     }
 
     public func makeFinalFilter(otherInputTextures: C7InputTextures?) -> C7FilterProtocol? {
-        guard let blurredDetailGuide = otherInputTextures?.first else {
-            return PipelineLeafFilter(
-                modifier: .compute(kernel: "C7HighPassSkinSmoothingComposite"),
-                factors: [
-                    amount,
-                    detailThreshold,
-                    detailTransition,
-                    sharpnessFactor,
-                    toneCurveInputMidpoint,
-                    toneCurveOutputMidpoint
-                ]
-            )
-        }
+        if usesIdentity { return PipelineIdentityFilter() }
         return PipelineLeafFilter(
             modifier: .compute(kernel: "C7HighPassSkinSmoothingComposite"),
-            factors: [
-                amount,
-                detailThreshold,
-                detailTransition,
-                sharpnessFactor,
-                toneCurveInputMidpoint,
-                toneCurveOutputMidpoint
-            ],
-            otherInputTextures: [blurredDetailGuide]
+            factors: parameters,
+            otherInputTextures: otherInputTextures?.first.map { [$0] } ?? []
         )
     }
 }

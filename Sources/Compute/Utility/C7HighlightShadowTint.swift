@@ -29,13 +29,19 @@ public struct C7HighlightShadowTint: C7FilterProtocol {
 
     public var kernelParameterBindings: [KernelParameterBinding] {
         [
-            KernelParameterBinding(name: "shadows", index: 0, stage: .compute, value: .float(shadows)),
-            KernelParameterBinding(name: "highlights", index: 1, stage: .compute, value: .float(highlights)),
+            KernelParameterBinding(name: "shadows", index: 0, stage: .compute, value: .float(shadows.isFinite ? shadows : 0)),
+            KernelParameterBinding(name: "highlights", index: 1, stage: .compute, value: .float(highlights.isFinite ? highlights : 0)),
             KernelParameterBinding(name: "shadowsColor", index: 2, stage: .compute, value: .float3(shadowsColor.c7.toSIMD3())),
             KernelParameterBinding(name: "highlightsColor", index: 3, stage: .compute, value: .float3(highlightsColor.c7.toSIMD3()))
         ]
     }
     
+    public var kernelPixelContract: KernelPixelContract {
+        .init(inputAlphaExpectation: .premultiplied, precision: .float32,
+              dynamicRangeBehavior: .preservesExtendedRange, samplingFootprint: .point)
+    }
+    public var kernelOutputContract: RenderOutputContract { .premultipliedColorInput }
+
     public init(highlights: Float = range.value, highlightsColor: C7Color = .zero, shadows: Float = range.value, shadowsColor: C7Color = .zero) {
         self.highlights = highlights
         self.shadows = shadows

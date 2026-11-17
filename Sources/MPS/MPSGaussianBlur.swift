@@ -23,7 +23,7 @@ public struct MPSGaussianBlur: MPSKernelProtocol {
     public let edgeMode: MPSImageEdgeMode
 
     public var sigma: Float {
-        usesExactSigma ? radius : ceil(radius)
+        usesExactSigma ? (radius.isFinite ? radius : 0) : ceil(radius.isFinite ? radius : 0)
     }
 
     public var factors: [Float] {
@@ -59,11 +59,12 @@ public struct MPSGaussianBlur: MPSKernelProtocol {
     }
     
     public init(radius: Float = range.value, edgeMode: MPSImageEdgeMode = .clamp) {
+        let normalizedRadius = radius.isFinite ? min(max(radius, Self.range.min), Self.range.max) : 0
         self.usesExactSigma = false
         self.edgeMode = edgeMode
-        self.gaussian = MPSImageGaussianBlur(device: HarbethContext.shared.device, sigma: ceil(radius))
+        self.gaussian = MPSImageGaussianBlur(device: HarbethContext.shared.device, sigma: ceil(normalizedRadius))
         self.gaussian.edgeMode = edgeMode
-        self.radius = radius
+        self.radius = normalizedRadius
     }
 
     public init(sigma: Float, edgeMode: MPSImageEdgeMode = .clamp) throws {

@@ -396,9 +396,9 @@ public struct C7SceneRelight: C7FilterProtocol {
             inputColorSpace: linearRGB,
             workingColorSpace: linearRGB,
             outputColorSpace: linearRGB,
-            inputAlphaExpectation: .preserveInput,
+            inputAlphaExpectation: .premultiplied,
             outputAlpha: .preserveInput,
-            precision: .float16,
+            precision: .float32,
             dynamicRangeBehavior: .preservesExtendedRange,
             samplingFootprint: .neighborhood(radius: 1),
             coordinateDependency: .fullImage,
@@ -406,6 +406,8 @@ public struct C7SceneRelight: C7FilterProtocol {
             fusionPolicy: .disabled
         )
     }
+
+    public var kernelOutputContract: RenderOutputContract { .premultipliedColorInput }
 
     public var kernelResourceIdentity: String? {
         guard let depthTexture else {

@@ -62,14 +62,19 @@ float3 hslToRgb(float3 hsl) {
     return rgb + m;
 }
 
-kernel void C7HSL(texture2d<half, access::write> outputTexture [[texture(0)]],
-                  texture2d<half, access::read> inputTexture [[texture(1)]],
+kernel void C7HSL(texture2d<float, access::write> outputTexture [[texture(0)]],
+                  texture2d<float, access::read> inputTexture [[texture(1)]],
                   constant float *hue [[buffer(0)]],
                   constant float *saturation [[buffer(1)]],
                   constant float *lightness [[buffer(2)]],
+                  constant float &halfOutput [[buffer(3)]],
                   uint2 grid [[thread_position_in_grid]]) {
-    const half4 inColor = inputTexture.read(grid);
-    float3 rgb = float3(inColor.r, inColor.g, inColor.b);
+    if (grid.x >= outputTexture.get_width() || grid.y >= outputTexture.get_height()) return;
+    const float4 inColor = inputTexture.read(grid);
+    if (*hue == 0.0f && *saturation == 0.0f && *lightness == 0.0f) { outputTexture.write(halfOutput > 0.5f ? float4(half4(inColor)) : inColor, grid); return; }
+    if (inColor.a <= 0.0f) { outputTexture.write(float4(0), grid); return; }
+    // 非中性HSL沿用SDR夹值语义；先约束有效直色域，避免域外饱和度分母退化。
+    float3 rgb = clamp(inColor.rgb / inColor.a, 0.0f, 1.0f);
     
     float hueAdjust = *hue;
     float saturationAdjust = *saturation;
@@ -91,7 +96,7 @@ kernel void C7HSL(texture2d<half, access::write> outputTexture [[texture(0)]],
     
     float3 outRgb = hslToRgb(hsl);
     
-    half4 outColor = half4(half3(outRgb), inColor.a);
+    float4 outColor = float4(outRgb * inColor.a, inColor.a);
     
-    outputTexture.write(outColor, grid);
+    outputTexture.write(halfOutput > 0.5f ? float4(half4(outColor)) : outColor, grid);
 }

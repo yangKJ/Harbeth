@@ -76,11 +76,12 @@ static SceneRelightScalarSample c7SceneRelightSampleScalarPlane(
     };
 }
 
-kernel void C7SceneRelight(texture2d<half, access::write> outputTexture [[texture(0)]],
-                           texture2d<half, access::read> inputTexture [[texture(1)]],
+kernel void C7SceneRelight(texture2d<float, access::write> outputTexture [[texture(0)]],
+                           texture2d<float, access::read> inputTexture [[texture(1)]],
                            texture2d<float, access::read> depthTexture [[texture(2)]],
                            texture2d<float, access::read> confidenceTexture [[texture(3)]],
                            constant float *parameters [[buffer(0)]],
+                           constant float &halfOutput [[buffer(1)]],
                            constant float *mappingContext [[buffer(30)]],
                            uint2 grid [[thread_position_in_grid]]) {
     if (grid.x >= outputTexture.get_width() || grid.y >= outputTexture.get_height()) {
@@ -99,7 +100,7 @@ kernel void C7SceneRelight(texture2d<half, access::write> outputTexture [[textur
     float4 source = float4(inputTexture.read(uint2(inputPixel)));
     if (!all(isfinite(source))) {
         source = select(float4(0.0), source, isfinite(source));
-        outputTexture.write(half4(source), grid);
+        outputTexture.write(halfOutput > 0.5f ? float4(half4(source)) : source, grid);
         return;
     }
 
@@ -111,7 +112,7 @@ kernel void C7SceneRelight(texture2d<half, access::write> outputTexture [[textur
         && all(isfinite(float4(parameters[9], parameters[10], parameters[11], parameters[12])))
         && isfinite(parameters[13]);
     if (!headerIsValid) {
-        outputTexture.write(half4(source), grid);
+        outputTexture.write(halfOutput > 0.5f ? float4(half4(source)) : source, grid);
         return;
     }
 
@@ -123,7 +124,7 @@ kernel void C7SceneRelight(texture2d<half, access::write> outputTexture [[textur
         canvasUV
     );
     if (centerDepth.validWeight <= 0.0) {
-        outputTexture.write(half4(source), grid);
+        outputTexture.write(halfOutput > 0.5f ? float4(half4(source)) : source, grid);
         return;
     }
     const SceneRelightScalarSample leftDepth = c7SceneRelightSampleScalarPlane(
@@ -288,7 +289,7 @@ kernel void C7SceneRelight(texture2d<half, access::write> outputTexture [[textur
             canvasUV
         );
         if (confidenceSample.validWeight <= 0.0) {
-            outputTexture.write(half4(source), grid);
+            outputTexture.write(halfOutput > 0.5f ? float4(half4(source)) : source, grid);
             return;
         }
         const float confidence = confidenceSample.value;
@@ -296,13 +297,14 @@ kernel void C7SceneRelight(texture2d<half, access::write> outputTexture [[textur
         gain = mix(float3(1.0), gain, confidenceWeight);
     }
 
-    const float sourceLuminance = max(dot(source.rgb, float3(0.2126, 0.7152, 0.0722)), 0.0);
+    const float sourceLuminance = max(dot(source.a > 0.0f ? source.rgb / source.a : float3(0), float3(0.2126, 0.7152, 0.0722)), 0.0);
     const float rolloff = clamp(parameters[6], 0.0, 8.0);
     gain = float3(1.0) + (gain - float3(1.0)) / (1.0 + rolloff * sourceLuminance);
     const float3 outputRGB = source.rgb * gain;
     if (!c7SceneRelightFinite(gain) || !c7SceneRelightFinite(outputRGB)) {
-        outputTexture.write(half4(source), grid);
+        outputTexture.write(halfOutput > 0.5f ? float4(half4(source)) : source, grid);
         return;
     }
-    outputTexture.write(half4(half3(outputRGB), half(source.a)), grid);
+    const float4 result = float4(source.a > 0.0f ? outputRGB : float3(0), source.a);
+    outputTexture.write(halfOutput > 0.5f ? float4(half4(result)) : result, grid);
 }

@@ -26,9 +26,9 @@ public struct C7BlendChromaKey: C7FilterProtocol {
     
     public var kernelParameterBindings: [KernelParameterBinding] {
         return [
-            KernelParameterBinding(name: "keying", index: 0, stage: .compute, value: .float2(SIMD2<Float>(threshold, smoothing))),
+            KernelParameterBinding(name: "keying", index: 0, stage: .compute, value: .float2(SIMD2<Float>(threshold.isFinite ? max(threshold, 0) : 0.4, smoothing.isFinite ? max(smoothing, 0) : 0.1))),
             KernelParameterBinding(name: "keyColor", index: 1, stage: .compute, value: .float3(color.c7.toSIMD3())),
-            KernelParameterBinding(name: "intensity", index: 2, stage: .compute, value: .float(intensity))
+            KernelParameterBinding(name: "intensity", index: 2, stage: .compute, value: .float(intensity.isFinite ? intensity : 0))
         ]
     }
     
@@ -36,6 +36,11 @@ public struct C7BlendChromaKey: C7FilterProtocol {
         .point
     }
     
+    public var kernelPixelContract: KernelPixelContract {
+        .init(inputAlphaExpectation: .premultiplied, outputAlpha: .premultiplied, precision: .float32, samplingFootprint: .point)
+    }
+    public var kernelOutputContract: RenderOutputContract { .premultipliedColorOutput }
+
     public init(threshold: Float = 0.4, smoothing: Float = 0.1, color: C7Color = .white) {
         self.threshold = threshold
         self.smoothing = smoothing

@@ -20,6 +20,11 @@ public struct C7TextureOverlay: C7FilterProtocol {
         self.texture = texture
         self.rect = rect
     }
+    public var kernelPixelContract: KernelPixelContract {
+        .init(inputAlphaExpectation: .premultiplied, precision: .float32, dynamicRangeBehavior: .preservesExtendedRange,
+              samplingFootprint: .dynamic, coordinateDependency: .fullImage, globalDependency: .imageDimensions)
+    }
+    public var kernelOutputContract: RenderOutputContract { .premultipliedColorInput }
     public var modifier: ModifierEnum { .compute(kernel: "HarbethTextureOverlay") }
     public var memoryAccessPattern: MemoryAccessPattern { .dualTexture }
     public var otherInputTextures: C7InputTextures { [texture] }

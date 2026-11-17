@@ -29,13 +29,19 @@ public struct C7HSL: C7FilterProtocol {
     }
     
     public var factors: [Float] {
-        return [hue, saturation, lightness]
+        return [hue.isFinite ? hue : 0, saturation.isFinite ? saturation : 0, lightness.isFinite ? lightness : 0]
     }
     
     public var memoryAccessPattern: MemoryAccessPattern {
         .point
     }
     
+    public var kernelPixelContract: KernelPixelContract {
+        .init(inputAlphaExpectation: .premultiplied, precision: .float32,
+              dynamicRangeBehavior: factors.allSatisfy { $0 == 0 } ? .preservesExtendedRange : .clampsToUnitRange, samplingFootprint: .point)
+    }
+    public var kernelOutputContract: RenderOutputContract { .premultipliedColorInput }
+
     public init(hue: Float = 0, saturation: Float = 0, lightness: Float = 0) {
         self.hue = hue
         self.saturation = saturation
