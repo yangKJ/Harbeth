@@ -25,7 +25,7 @@ public struct C7MaskedForegroundBlend: C7FilterProtocol {
     }
 
     public var factors: [Float] {
-        [intensity]
+        [intensity.isFinite ? intensity : 0]
     }
 
     public var otherInputTextures: C7InputTextures {
@@ -35,6 +35,12 @@ public struct C7MaskedForegroundBlend: C7FilterProtocol {
     public var memoryAccessPattern: MemoryAccessPattern {
         .multiTexture
     }
+
+    public var kernelPixelContract: KernelPixelContract {
+        .init(inputAlphaExpectation: .premultiplied, precision: .float32, samplingFootprint: .dynamic,
+              coordinateDependency: .fullImage, globalDependency: .imageDimensions)
+    }
+    public var kernelOutputContract: RenderOutputContract { .premultipliedColorInput }
 
     private let foregroundTexture: MTLTexture
     private let maskTexture: MTLTexture

@@ -104,8 +104,8 @@ struct Compute {
         filter: C7FilterProtocol
     ) throws -> MTLTexture {
         let descriptor = filter.kernelDescriptor()
-        let identity = pipelineIdentity(identity: descriptor.functionIdentity, textures: textures)
-        let pipelineState = identity.primaryName == kernel
+        let identity = pipelineIdentity(identity: descriptor.functionIdentity, textures: textures, filter: filter)
+        let pipelineState = descriptor.functionIdentity.primaryName == kernel
         ? try makeComputePipelineState(with: identity)
         : try makeComputePipelineState(with: kernel)
         if filter is TemporaryTextureRequirementProviding, let output = try OutlineFlatClassification.encode(commandBuffer: commandBuffer, textures: textures, descriptor: descriptor, identity: identity) { return output }
@@ -119,7 +119,8 @@ struct Compute {
             pipelineState: pipelineState,
             textures: textures,
             filter: filter,
-            parameterBindings: descriptor.parameterBindings
+            parameterBindings: descriptor.parameterBindings,
+            cellSize: identity.primaryName == "C7OrderedDitherCells" ? (filter as? C7OrderedDither)?.pixelSize ?? 1 : 1
         )
     }
     
@@ -131,10 +132,10 @@ struct Compute {
         complete: @escaping @Sendable (Result<MTLTexture, HarbethError>) -> Void
     ) {
         let descriptor = filter.kernelDescriptor()
-        let identity = pipelineIdentity(identity: descriptor.functionIdentity, textures: textures)
+        let identity = pipelineIdentity(identity: descriptor.functionIdentity, textures: textures, filter: filter)
         let makePipeline: (@escaping @Sendable (Result<MTLComputePipelineState, HarbethError>) -> Void) -> Void = {
             callback in
-            if identity.primaryName == kernel {
+            if descriptor.functionIdentity.primaryName == kernel {
                 makeComputePipelineState(with: identity, complete: callback)
             } else {
                 makeComputePipelineState(with: kernel, complete: callback)
@@ -160,7 +161,8 @@ struct Compute {
                         pipelineState: pipelineState,
                         textures: execution.value.1,
                         filter: execution.value.2,
-                        parameterBindings: execution.value.3
+                        parameterBindings: execution.value.3,
+                        cellSize: identity.primaryName == "C7OrderedDitherCells" ? (execution.value.2 as? C7OrderedDither)?.pixelSize ?? 1 : 1
                     )
                     complete(.success(destTexture))
                 } catch {
@@ -171,10 +173,13 @@ struct Compute {
         }
     }
     
-    private static func pipelineIdentity(identity: KernelFunctionIdentity, textures: [MTLTexture]) -> KernelFunctionIdentity {
-        guard identity.primaryName == "C7StickerOutline", identity.functionConstants.isEmpty,
-              let target = textures.first, target.width >= 512, target.height >= 512,
-              target.device.supportsFamily(.apple7) || target.device.supportsFamily(.mac2) else { return identity }
+    private static func pipelineIdentity(identity: KernelFunctionIdentity, textures: [MTLTexture], filter: C7FilterProtocol) -> KernelFunctionIdentity {
+        guard identity.functionConstants.isEmpty, let target = textures.first else { return identity }
+        // 只压缩内置完整画布的派发；带区域绑定的包装器继续使用规范内核。
+        let cells = identity.primaryName == "C7OrderedDither" && (filter as? C7OrderedDither).map { $0.pixelSize >= 4 } == true
+        let outline = identity.primaryName == "C7StickerOutline" && target.width >= 512 && target.height >= 512
+            && (target.device.supportsFamily(.apple7) || target.device.supportsFamily(.mac2))
+        guard cells || outline else { return identity }
         switch identity.librarySource {
         case .harbethFramework: break
         case .automatic:
@@ -184,10 +189,14 @@ struct Compute {
             }) { return identity }
         default: return identity
         }
-        // 大图才支付按组剪枝的特化成本；显式常量和同名外部库的解析优先级保持。
-        return KernelFunctionIdentity(kind: identity.kind, primaryName: identity.primaryName,
-            secondaryName: identity.secondaryName, librarySource: identity.librarySource,
-            functionConstants: [.init(name: "stickerUsesSIMDGroup", index: 0, value: .bool(true))])
+        if cells { return KernelFunctionIdentity(kind: identity.kind, primaryName: "C7OrderedDitherCells", librarySource: .harbethFramework) }
+        return KernelFunctionIdentity(
+            kind: identity.kind,
+            primaryName: identity.primaryName,
+            secondaryName: identity.secondaryName,
+            librarySource: identity.librarySource,
+            functionConstants: [.init(name: "stickerUsesSIMDGroup", index: 0, value: .bool(true))]
+        )
     }
 
     private static func calculateBaseSize(pattern: MemoryAccessPattern, pipelineState: MTLComputePipelineState) -> MTLSize {
@@ -254,6 +263,16 @@ struct Compute {
         case "C7Temperature", "C7ColorBalanceEnhanced": return 4
         case "C7WhiteBalance": return 2
         case "C7LevelsFilter", "C7LevelsAdjustment": return 5
+        case "C7BlendColorAdd", "C7BlendColorAlpha", "C7BlendColorBurn", "C7BlendColorDodge", "C7BlendDarken", "C7BlendDarkerColor",
+             "C7BlendDifference", "C7BlendDissolve", "C7BlendDivide", "C7BlendExclusion", "C7BlendHardLight", "C7BlendHardMix",
+             "C7BlendHue", "C7BlendLighten", "C7BlendLighterColor", "C7BlendLinearBurn", "C7BlendLinearLight", "C7BlendLuminosity",
+             "C7BlendMask", "C7BlendMultiply", "C7BlendNormal", "C7BlendOverlay", "C7BlendPinLight", "C7BlendSaturation",
+             "C7BlendScreen", "C7BlendSoftLight", "C7BlendSourceOver", "C7BlendSubtract", "C7BlendVividLight", "C7BlendColor": return 1
+        case "C7Highlights", "C7Shadows", "C7MaskedForegroundBlend": return 1
+        case "C7HighlightShadow": return 2
+        case "C7ChromaKey", "C7OutputQuantization": return 4
+        case "C7PixelFormatChange": return 0
+        case "C7OrderedDither", "C7OrderedDitherCells": return 5
         case "C7ColorCube": return 5
         case "C7UnpremultiplyAlpha", "C7PremultiplyAlpha": return 0
         case "C7SolidColor", "C7Pixellated", "C7Halftone": return 1
@@ -262,7 +281,7 @@ struct Compute {
         case "C7DefringeCorrection": return 8
         case "C7StickerOutline", "C7StickerOutlineClassified": return 3
         case "C7VoronoiOverlay", "C7VoronoiOverlayField": return 4
-        case "C7Sharpen", "C7Sobel", "C7Sketch", "C7BlendColorBurn", "C7BlendDivide": return 1
+        case "C7Sharpen", "C7Sobel", "C7Sketch": return 1
         case "C7RGBADilation": return 2
         case "C7ConvolutionMatrix3x3", "C7MultiZoneLookup": return 3
         case "C7Deband": return 4
@@ -279,7 +298,8 @@ struct Compute {
         pipelineState: MTLComputePipelineState,
         textures: [MTLTexture],
         filter: C7FilterProtocol,
-        parameterBindings: [KernelParameterBinding]
+        parameterBindings: [KernelParameterBinding],
+        cellSize: Int
     ) throws -> MTLTexture {
         if case .compute(let kernel) = filter.modifier {
             computeEncoder.label = kernel + " encoder"
@@ -337,8 +357,10 @@ struct Compute {
         let threadgroupSize = calculateOptimalThreadgroupSize(for: pipelineState, texture: destTexture, filter: filter)
         // -1 pixel to solve the problem that the edges of images are not drawn.
         // Minimum 1 pixel, solve the problem of zero without drawing.
-        let width = max(Int((destTexture.width + threadgroupSize.width - 1) / threadgroupSize.width), 1)
-        let height = max(Int((destTexture.height + threadgroupSize.height - 1) / threadgroupSize.height), 1)
+        let dispatchWidth = (destTexture.width + cellSize - 1) / cellSize
+        let width = max(Int((dispatchWidth + threadgroupSize.width - 1) / threadgroupSize.width), 1)
+        let dispatchHeight = (destTexture.height + cellSize - 1) / cellSize
+        let height = max(Int((dispatchHeight + threadgroupSize.height - 1) / threadgroupSize.height), 1)
         //let threadGroups = MTLSizeMake(width, height, destTexture.arrayLength)
         let threadgroupCount = MTLSize(width: width, height: height, depth: 1)
         computeEncoder.dispatchThreadgroups(threadgroupCount, threadsPerThreadgroup: threadgroupSize)

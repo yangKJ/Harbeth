@@ -31,12 +31,22 @@ public struct C7ChromaKey: C7FilterProtocol {
         .point
     }
 
+    private var premultipliedReplacement: SIMD4<Float> {
+        var value = replace.c7.toSIMD4()
+        value.x *= value.w; value.y *= value.w; value.z *= value.w
+        return value
+    }
+    public var kernelPixelContract: KernelPixelContract {
+        .init(inputAlphaExpectation: .premultiplied, outputAlpha: .premultiplied, precision: .float32, samplingFootprint: .point)
+    }
+    public var kernelOutputContract: RenderOutputContract { .premultipliedColorOutput }
+
     public var kernelParameterBindings: [KernelParameterBinding] {
         [
-            KernelParameterBinding(name: "thresholdSensitivity", index: 0, stage: .compute, value: .float(thresholdSensitivity)),
-            KernelParameterBinding(name: "smoothing", index: 1, stage: .compute, value: .float(smoothing)),
+            KernelParameterBinding(name: "thresholdSensitivity", index: 0, stage: .compute, value: .float(thresholdSensitivity.isFinite ? thresholdSensitivity : 0.4)),
+            KernelParameterBinding(name: "smoothing", index: 1, stage: .compute, value: .float(smoothing.isFinite ? smoothing : 0.1)),
             KernelParameterBinding(name: "chroma", index: 2, stage: .compute, value: .float3(chroma.c7.toSIMD3())),
-            KernelParameterBinding(name: "replace", index: 3, stage: .compute, value: .float4(replace.c7.toSIMD4()))
+            KernelParameterBinding(name: "replace", index: 3, stage: .compute, value: .float4(premultipliedReplacement))
         ]
     }
     

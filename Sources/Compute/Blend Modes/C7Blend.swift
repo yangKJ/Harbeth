@@ -8,7 +8,7 @@
 import Foundation
 import MetalKit
 
-public struct C7Blend: C7FilterProtocol {
+public struct C7Blend: C7FilterProtocol, BlitProtocol {
     
     public enum BlendType {
         case add
@@ -47,21 +47,55 @@ public struct C7Blend: C7FilterProtocol {
     @ZeroOneRange public var intensity: Float = R.intensityRange.value
     
     public var modifier: ModifierEnum {
-        return .compute(kernel: blendType.kernel)
+        return isBypassed ? .blit : .compute(kernel: blendType.kernel)
     }
     
     public var factors: [Float] {
-        return [intensity]
+        return [intensity.isFinite ? intensity : 0]
     }
     
     public var otherInputTextures: C7InputTextures {
-        return blendTexture == nil ? [] : [blendTexture!]
+        return isBypassed ? [] : [blendTexture!]
     }
     
     public var memoryAccessPattern: MemoryAccessPattern {
         .dualTexture
     }
     
+    private var isBypassed: Bool { blendTexture == nil || !intensity.isFinite || intensity <= 0 }
+    public var kernelPixelContract: KernelPixelContract {
+        .init(inputAlphaExpectation: isBypassed ? .preserveInput : .premultiplied,
+              outputAlpha: isBypassed ? .preserveInput : .premultiplied, precision: .float32,
+              samplingFootprint: isBypassed ? .point : .dynamic,
+              coordinateDependency: isBypassed ? .local : .fullImage,
+              globalDependency: isBypassed ? .none : .imageDimensions)
+    }
+    public var kernelOutputContract: RenderOutputContract { isBypassed ? .preserveInput : .premultipliedColorOutput }
+
+    public func encode(commandBuffer: MTLCommandBuffer, textures: [MTLTexture]) throws -> MTLTexture {
+        guard textures.count >= 2 else { throw HarbethError.filterParameterInvalid("混合旁路缺少来源或目标") }
+        let output = textures[0], input = textures[1]
+        guard input.width == output.width, input.height == output.height else { throw HarbethError.textureSizeMismatch }
+        if input === output { return output }
+        if input.pixelFormat != output.pixelFormat {
+            return try C7PixelFormatChange().applyAtTexture(form: input, to: output, for: commandBuffer)
+        }
+        guard let encoder = commandBuffer.makeBlitCommandEncoder() else { throw HarbethError.makeBlitCommandEncoder }
+        encoder.copy(
+            from: input,
+            sourceSlice: 0,
+            sourceLevel: 0,
+            sourceOrigin: .init(x: 0, y: 0, z: 0),
+            sourceSize: .init(width: input.width, height: input.height, depth: 1),
+            to: output,
+            destinationSlice: 0,
+            destinationLevel: 0,
+            destinationOrigin: .init(x: 0, y: 0, z: 0)
+        )
+        encoder.endEncoding()
+        return output
+    }
+
     private var blendTexture: MTLTexture?
     private var blendType: C7Blend.BlendType
     

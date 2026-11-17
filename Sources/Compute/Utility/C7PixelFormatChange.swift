@@ -17,5 +17,9 @@ public struct C7PixelFormatChange: C7FilterProtocol {
         .point
     }
 
+    public var kernelPixelContract: KernelPixelContract {
+        .init(precision: .float32, dynamicRangeBehavior: .preservesExtendedRange, samplingFootprint: .point)
+    }
+
     public init() {}
 }

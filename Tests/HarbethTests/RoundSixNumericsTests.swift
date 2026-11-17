@@ -153,13 +153,16 @@ final class RoundSixNumericsTests: XCTestCase {
             for mode in [C7Blend.BlendType.colorBurn, .divide] { for intensity: Float in [0, 0.5, 1] {
                 let actual = try pixels(input, C7Blend(with: mode, blendTexture: overlay, intensity: intensity))
                 for i in stride(from: 0, to: base.count, by: 4) { for c in 0..<4 {
-                    let b = Double(base[i + c]), s = Double(top[i + c]), ba = Double(base[i + 3]), sa = Double(top[i + 3])
+                    let b = Double(base[i + c]), ba = Double(base[i + 3]), sa = Double(top[i + 3])
                     let mapped: Double
-                    if mode == .colorBurn { mapped = s == 0 ? (b == 1 ? 1 : 0) : 1 - (1 - b) / s }
+                    if sa == 0 { mapped = b }
                     else if c == 3 { mapped = sa + ba - sa * ba }
                     else {
-                        let remainder = s * (1 - ba) + b * (1 - sa)
-                        mapped = sa == 0 || s == 0 || b / s > ba / sa ? sa * ba + remainder : b * sa * sa / s + remainder
+                        let s = Double(top[i + c]), straightBase = b / ba, straightTop = s / sa
+                        let mixed: Double
+                        if mode == .colorBurn { mixed = straightTop == 0 ? (straightBase == 1 ? 1 : 0) : 1 - (1 - straightBase) / straightTop }
+                        else { mixed = straightTop == 0 || straightBase / straightTop > 1 ? 1 : straightBase / straightTop }
+                        mapped = b * (1 - sa) + s * (1 - ba) + mixed * ba * sa
                     }
                     let expected = Float(b + Double(intensity) * (mapped - b))
                     XCTAssertTrue(actual[i + c].isFinite)

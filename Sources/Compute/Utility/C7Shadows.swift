@@ -21,13 +21,19 @@ public struct C7Shadows: C7FilterProtocol {
     }
     
     public var factors: [Float] {
-        return [shadow]
+        return [shadow.isFinite ? shadow : 0]
     }
     
     public var memoryAccessPattern: MemoryAccessPattern {
         .point
     }
     
+    public var kernelPixelContract: KernelPixelContract {
+        .init(inputAlphaExpectation: .premultiplied, precision: .float32,
+              dynamicRangeBehavior: .preservesExtendedRange, samplingFootprint: .point)
+    }
+    public var kernelOutputContract: RenderOutputContract { .premultipliedColorInput }
+
     public init(shadow: Float = range.value) {
         self.shadow = shadow
     }

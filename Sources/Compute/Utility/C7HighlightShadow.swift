@@ -16,21 +16,27 @@ public struct C7HighlightShadow: C7FilterProtocol {
     @ZeroOneRange public var shadows: Float = range.value
     
     /// Decrease to darken highlights, from 1.0 to 0.0, with 1.0 as the default.
-    @ZeroOneRange public var highlights: Float = range.value
+    @ZeroOneRange public var highlights: Float = 1
     
     public var modifier: ModifierEnum {
         return .compute(kernel: "C7HighlightShadow")
     }
     
     public var factors: [Float] {
-        return [shadows, highlights]
+        return [shadows.isFinite ? shadows : 0, highlights.isFinite ? highlights : 1]
     }
     
     public var memoryAccessPattern: MemoryAccessPattern {
         .point
     }
     
-    public init(highlights: Float = range.value, shadows: Float = range.value) {
+    public var kernelPixelContract: KernelPixelContract {
+        .init(inputAlphaExpectation: .premultiplied, precision: .float32,
+              dynamicRangeBehavior: .preservesExtendedRange, samplingFootprint: .point)
+    }
+    public var kernelOutputContract: RenderOutputContract { .premultipliedColorInput }
+
+    public init(highlights: Float = 1, shadows: Float = range.value) {
         self.highlights = highlights
         self.shadows = shadows
     }

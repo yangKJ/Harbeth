@@ -31,7 +31,7 @@ public struct C7OutputQuantization: C7FilterProtocol {
 
     public var kernelPixelContract: KernelPixelContract {
         KernelPixelContract(
-            precision: .float16,
+            precision: .float32,
             dynamicRangeBehavior: .clampsToUnitRange,
             samplingFootprint: .point,
             coordinateDependency: .absoluteInput,
@@ -42,7 +42,7 @@ public struct C7OutputQuantization: C7FilterProtocol {
     public init(bitDepth: Int = 8, pattern: ImageDitherPattern = .ordered4x4, strength: Float = 1, seed: UInt32 = 0) {
         self.bitDepth = min(max(bitDepth, 1), 16)
         self.pattern = pattern
-        self.strength = min(max(strength, 0), 1)
+        self.strength = strength.isFinite ? min(max(strength, 0), 1) : 1
         self.seed = seed
     }
 

@@ -36,24 +36,30 @@ static inline float c7InterleavedGradientNoise(float2 position, float seed) {
     return fract(52.9829189f * fract(dot(value, float2(0.06711056f, 0.00583715f)))) - 0.5f;
 }
 
-kernel void C7OutputQuantization(texture2d<half, access::write> outputTexture [[texture(0)]],
-                                 texture2d<half, access::read> inputTexture [[texture(1)]],
+kernel void C7OutputQuantization(texture2d<float, access::write> outputTexture [[texture(0)]],
+                                 texture2d<float, access::read> inputTexture [[texture(1)]],
                                  constant float *bitDepthPointer [[buffer(0)]],
                                  constant float *patternPointer [[buffer(1)]],
                                  constant float *strengthPointer [[buffer(2)]],
                                  constant float *seedPointer [[buffer(3)]],
                                  constant float4 *harbethRegionContext [[buffer(30)]],
+                                 constant float &halfOutput [[buffer(4)]],
                                  uint2 grid [[thread_position_in_grid]]) {
     if (grid.x >= outputTexture.get_width() || grid.y >= outputTexture.get_height()) {
         return;
     }
 
-    const float4 input = float4(inputTexture.read(grid));
+    const float4 inputRegion=harbethRegionContext[0],outputRegion=harbethRegionContext[1];
+    const float2 global=float2(grid)+outputRegion.xy;
+    const float2 local=all(inputRegion.zw==outputRegion.zw) ? global-inputRegion.xy
+        : global/max(outputRegion.zw,float2(1))*inputRegion.zw-inputRegion.xy;
+    const int2 point=clamp(int2(local),int2(0),int2(inputTexture.get_width()-1,inputTexture.get_height()-1));
+    const float4 input = inputTexture.read(uint2(point));
     const float bitDepth = clamp(round(*bitDepthPointer), 1.0f, 16.0f);
     const float levels = exp2(bitDepth) - 1.0f;
     const uint pattern = uint(round(*patternPointer));
     const float strength = clamp(*strengthPointer, 0.0f, 1.0f);
-    const int2 globalPixel = int2(floor(float2(grid) + harbethRegionContext->xy));
+    const int2 globalPixel = int2(floor(global));
     float noise = 0.0f;
     if (pattern == 1u) {
         noise = c7OrderedDither4x4(uint2(globalPixel));
@@ -67,5 +73,5 @@ kernel void C7OutputQuantization(texture2d<half, access::write> outputTexture [[
 
     float4 output = input;
     output.rgb = clamp(floor(clamp(input.rgb, 0.0f, 1.0f) * levels + 0.5f + noise * strength) / levels, 0.0f, 1.0f);
-    outputTexture.write(half4(output), grid);
+    outputTexture.write(halfOutput>0.5f ? float4(half4(output)):output, grid);
 }

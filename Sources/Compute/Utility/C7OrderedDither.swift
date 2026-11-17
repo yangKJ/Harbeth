@@ -26,8 +26,8 @@ public struct C7OrderedDither: C7FilterProtocol {
     public var kernelPixelContract: KernelPixelContract {
         KernelPixelContract(
             inputAlphaExpectation: .premultiplied,
-            outputAlpha: .premultiplied,
-            precision: .float16,
+            outputAlpha: .preserveInput,
+            precision: .float32,
             dynamicRangeBehavior: .clampsToUnitRange,
             samplingFootprint: pixelSize == 1 ? .point : .neighborhood(radius: pixelSize - 1),
             coordinateDependency: .absoluteInput,
@@ -35,6 +35,8 @@ public struct C7OrderedDither: C7FilterProtocol {
             fusionPolicy: .disabled
         )
     }
+
+    public var kernelOutputContract: RenderOutputContract { .premultipliedColorInput }
 
     public init(
         levels: Int = 8,
