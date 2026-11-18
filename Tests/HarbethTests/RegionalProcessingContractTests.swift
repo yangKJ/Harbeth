@@ -32,6 +32,56 @@ final class RegionalProcessingContractTests: XCTestCase {
         XCTAssertLessThanOrEqual(delta, 1)
     }
 
+    func testHighMinificationLanczosRetainsFullSupportAndTilePhase() throws {
+        let side = 512
+        let pixels = (0..<side * side).flatMap { index -> [Float] in
+            let value: Float = (index % side + index / side) % 2 == 0 ? 1 : 0
+            return [value, value, value, 1]
+        }
+        let source = try NeighborhoodTestImage.make(width: side, height: side, values: pixels)
+        let region = CGRect(x: 0, y: 0, width: side, height: side)
+        let full = try HarbethIO(element: source, filter: ImageRegionTransform(
+            sourceRegion: region, outputRegion: region, inverse: matrix_identity_float3x3,
+            edgeClamped: true, outputSize: CGSize(width: 8, height: 8), interpolation: .lanczos
+        )).output()
+        let tile = try HarbethIO(element: source, filter: ImageRegionTransform(
+            sourceRegion: region, outputRegion: CGRect(x: 128, y: 128, width: 256, height: 256),
+            inverse: matrix_identity_float3x3, edgeClamped: true,
+            outputSize: CGSize(width: 4, height: 4), interpolation: .lanczos
+        )).output()
+        let values = try NeighborhoodTestImage.read(full)
+        let tileValues = try NeighborhoodTestImage.read(tile)
+        for y in 0..<4 { for x in 0..<4 {
+            for channel in 0..<4 {
+                XCTAssertEqual(tileValues[(y * 4 + x) * 4 + channel],
+                    values[((y + 2) * 8 + x + 2) * 4 + channel], accuracy: 0.001)
+            }
+            XCTAssertEqual(tileValues[(y * 4 + x) * 4], 0.5, accuracy: 0.003)
+        } }
+    }
+
+    func testProjectiveLanczosHasFiniteOutputAtExtremeFootprints() throws {
+        let source = try NeighborhoodTestImage.make(width: 4, height: 4,
+            values: Array(repeating: [Float](arrayLiteral: 2, 0.5, 0, 0.5), count: 16).flatMap { $0 })
+        let inverse = simd_float3x3(rows: [SIMD3(1, 0, 0), SIMD3(0, 1, 0), SIMD3(0.001, 0, 0.00001)])
+        let region = CGRect(x: 0, y: 0, width: 4, height: 4)
+        let output = try HarbethIO(element: source, filter: ImageRegionTransform(
+            sourceRegion: region, outputRegion: region, inverse: inverse, edgeClamped: true,
+            outputSize: CGSize(width: 2, height: 2), interpolation: .lanczos
+        )).output()
+        let values = try NeighborhoodTestImage.read(output)
+        XCTAssertTrue(values.allSatisfy(\.isFinite))
+        for index in stride(from: 0, to: values.count, by: 4) {
+            XCTAssertEqual(values[index], 2, accuracy: 0.003)
+            XCTAssertEqual(values[index + 3], 0.5, accuracy: 0.001)
+        }
+        var invalid = inverse
+        invalid[0].x = .nan
+        XCTAssertThrowsError(try HarbethIO(element: source, filter: ImageRegionTransform(
+            sourceRegion: region, outputRegion: region, inverse: invalid, interpolation: .lanczos
+        )).output())
+    }
+
     func testCropNoOpReturnsTheRequestedSourceRegion() throws {
         let source = try makePatternTexture(width: 4, height: 4)
         let output: MTLTexture = try HarbethIO(

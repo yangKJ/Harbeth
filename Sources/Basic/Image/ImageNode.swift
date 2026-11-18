@@ -18,16 +18,6 @@ protocol ImagePromise {
     func makeDiagnostics(profile: RenderProfile, derivative: ImageDerivativeSpec?) throws -> RenderPlanDiagnostics
 }
 
-private final class OutputContractCacheEntry {
-    weak var sourceTexture: AnyObject?
-    let outputTexture: MTLTexture
-
-    init(sourceTexture: MTLTexture, outputTexture: MTLTexture) {
-        self.sourceTexture = sourceTexture as AnyObject
-        self.outputTexture = outputTexture
-    }
-}
-
 /// 同一次请求共享源物化结果；独立请求之间不共享可变纹理快照。
 final class ImageNodeSourcePreparation {
     private let lock = NSLock()
@@ -711,8 +701,21 @@ extension ImageNode {
         let renderRecipe = prepared.renderRecipe
         let diagnostics = prepared.diagnostics
         let primarySource = prepared.primarySource
-        let resolvedOutputColorSpace = outputColorSpace ?? diagnostics.outputColorSpace
-        let colorSpace = resolvedFrameColorSpace(for: primarySource, outputColorSpace: resolvedOutputColorSpace)
+        let resolvedOutputColorSpace = diagnostics.outputColorSpace
+        var colorSpace = resolvedFrameColorSpace(for: primarySource, outputColorSpace: resolvedOutputColorSpace)
+        if colorSpace == nil, outputColorSpace?.preservesInput == false {
+            // 未标记位图按实际解码的默认配置转换，裸纹理仍要求调用方声明来源。
+            switch primarySource {
+            case .ciImage(let image):
+                if #available(iOS 18.0, macOS 15.0, tvOS 18.0, *), image.metalTexture != nil { break }
+                colorSpace = HarbethContext.shared.colorSpace
+            case .image, .cgImage:
+                colorSpace = HarbethContext.shared.colorSpace
+            case .pixelBuffer, .sampleBuffer:
+                colorSpace = ImageColorSpaceContract.sRGB.cgColorSpace
+            default: break
+            }
+        }
         let frameOutputColorSpace: ImageColorSpaceContract
         if resolvedOutputColorSpace.preservesInput == false {
             frameOutputColorSpace = resolvedOutputColorSpace
@@ -752,7 +755,7 @@ extension ImageNode {
         renderedMetadata["performanceMonitoringIdentifier"] = metricsIdentifier
         let token = FrameRenderToken(identifier: frameIdentifier, generation: FrameGeneration.next())
         let logicalOutputSize = C7Size(texture: texture)
-        return RenderedFrame(
+        let frame = RenderedFrame(
             texture: texture,
             colorSpace: colorSpace,
             outputColorSpaceContract: frameOutputColorSpace,
@@ -775,6 +778,7 @@ extension ImageNode {
                 source.texture === texture ? RenderedFrameSourceOwner(source) : nil
             }
         )
+        return try frame.convertingOutput(to: outputColorSpace)
     }
 
     /// 执行队列开始处理时解析渲染计划；提交不会深拷贝 source 或自定义引用类型滤镜。
@@ -884,7 +888,7 @@ extension ImageNode {
         let texture = try makeTextureUncached(
             profile: profile,
             derivative: derivative,
-            samplerDescriptor: .default,
+            samplerDescriptor: resolvedSamplerDescriptor,
             executionIdentifier: executionIdentifier
         )
         if effectiveCachePolicy == .persistent {
@@ -1494,122 +1498,17 @@ extension ImageNode: ImagePromise {
         samplerDescriptor: ImageSamplerDescriptor,
         executionIdentifier: String?
     ) throws -> MTLTexture {
-        switch storage {
-        case .source(let source):
-            if let io = try source.planeAwareIO(filters: [], profile: profile, identifier: executionIdentifier ?? monitoringIdentifier,
-                                               derivative: derivative ?? profile.defaultDerivativeSpec) {
-                return try io.output()
-            }
-            let texture = try source.makeTexture()
-            return try resizeTextureIfNeeded(
-                texture,
-                derivative: derivative ?? profile.defaultDerivativeSpec,
-                profile: profile,
-                executionIdentifier: executionIdentifier
-            )
-        case .filters:
-            let route = flattenedFilterRoute()
-            let input = route.input
-            let filters = route.filters
-            if case .source(let source) = input.storage,
-               let io = try source.planeAwareIO(filters: SamplerExecutionAdapter.makePlan(filters: filters, samplerDescriptor: samplerDescriptor).filters,
-                    profile: profile, identifier: executionIdentifier ?? monitoringIdentifier,
-                    derivative: derivative ?? profile.defaultDerivativeSpec) {
-                return try io.output()
-            }
-            let inputTexture = try input.makeTextureUncached(
-                profile: profile,
-                derivative: nil,
-                samplerDescriptor: samplerDescriptor,
-                executionIdentifier: executionIdentifier
-            )
-            let program = RenderExecutionCompiler.compile(
-                filters: filters,
-                inputSize: C7Size(texture: inputTexture),
-                profile: profile,
-                derivative: derivative ?? profile.defaultDerivativeSpec,
-                compilationSource: input.compilationSource,
-                samplerDescriptor: samplerDescriptor,
-                sourceDescriptor: try input.resolvedPrimarySource().descriptor
-            )
-            let io = HarbethIO<MTLTexture>(
-                element: inputTexture,
-                filters: filters,
-                identifier: executionIdentifier ?? monitoringIdentifier
-            ).configured(for: profile)
-            return try io.executeRenderProgram(input: inputTexture, program: program)
-        case .kernel(let input, let descriptor, let filter):
-            let inputTexture = try input.makeTextureUncached(
-                profile: profile,
-                derivative: nil,
-                samplerDescriptor: samplerDescriptor,
-                executionIdentifier: executionIdentifier
-            )
-            try descriptor.validateCompatibility(with: filter, inputSize: C7Size(texture: inputTexture))
-            let rendered = try HarbethIO(
-                element: inputTexture,
-                filter: SamplerExecutionAdapter.adapt(filter: filter, samplerDescriptor: samplerDescriptor),
-                identifier: executionIdentifier ?? monitoringIdentifier
-            ).configured(for: profile).output()
-            let contracted = try ImageNode.applyOutputContractIfNeeded(
-                descriptor.outputContract,
-                to: rendered,
-                sourceColorSpace: descriptor.inputColorSpace,
-                sourceAlphaType: descriptor.outputContract.inputAlphaExpectation.expectedAlphaType,
-                profile: profile,
-                identifier: executionIdentifier ?? monitoringIdentifier
-            )
-            return try resizeTextureIfNeeded(
-                contracted,
-                derivative: derivative ?? profile.defaultDerivativeSpec,
-                profile: profile,
-                executionIdentifier: executionIdentifier
-            )
-        case .edit(let input, let recipe, let mode):
-            let inputTexture = try input.makeTextureUncached(
-                profile: profile,
-                derivative: nil,
-                samplerDescriptor: samplerDescriptor,
-                executionIdentifier: executionIdentifier
-            )
-            return try FrameRenderer(
-                source: .texture(inputTexture),
-                recipe: recipe,
-                mode: mode,
-                identifier: executionIdentifier ?? monitoringIdentifier,
-                derivative: derivative,
-                samplerDescriptor: samplerDescriptor
-            ).renderTexture()
-        case .transition(let recipe):
-            return try FrameRenderer(
-                transitionRecipe: recipe,
-                profile: profile,
-                derivative: derivative,
-                identifier: executionIdentifier ?? monitoringIdentifier,
-                samplerDescriptor: samplerDescriptor
-            ).renderTexture()
-        case .layerComposite(let recipe):
-            return try recipe.makeTexture(
-                profile: profile,
-                derivative: derivative,
-                samplerDescriptor: samplerDescriptor,
-                executionIdentifier: executionIdentifier ?? monitoringIdentifier
-            )
-        case .cachePolicy(let input, _):
-            return try input.makeTextureUncached(
-                profile: profile,
-                derivative: derivative,
-                samplerDescriptor: samplerDescriptor,
-                executionIdentifier: executionIdentifier
-            )
-        case .samplerDescriptor(let input, let descriptor):
-            return try input.makeTextureUncached(
-                profile: profile,
-                derivative: derivative,
-                samplerDescriptor: descriptor,
-                executionIdentifier: executionIdentifier
-            )
+        let prepared = try prepareExecution(
+            profile: profile,
+            derivative: derivative,
+            executionIdentifier: executionIdentifier,
+            samplerDescriptorOverride: samplerDescriptor
+        )
+        let texture = try prepared.renderTexture()
+        if let source = prepared.primarySource.retainedFrame, source.texture === texture {
+            return try source.makeIndependentTexture()
         }
+        return texture
     }
 
     func resolutionFingerprint(profile: RenderProfile = .stablePreview, derivative: ImageDerivativeSpec? = nil) -> String {
@@ -2145,25 +2044,7 @@ extension ImageNode: ImagePromise {
         )
     }
 
-    private func resizeTextureIfNeeded(
-        _ texture: MTLTexture,
-        derivative: ImageDerivativeSpec,
-        profile: RenderProfile,
-        executionIdentifier: String? = nil
-    ) throws -> MTLTexture {
-        try ImageNode.applyDerivativeResize(
-            texture,
-            derivative: derivative,
-            profile: profile,
-            identifier: executionIdentifier ?? monitoringIdentifier
-        )
-    }
-
-    /// Resize a texture to match the target size defined by `derivative`.
-    /// Returns the input unchanged when sizes already match.
-    ///
-    /// Single source of truth for derivative-driven resizing, shared between
-    /// `ImageNode.makeTextureUncached` and `LayerCompositeRecipe.makeTexture`.
+    /// 按派生输出规格缩放，共用执行准备与图层合成的尺寸解析。
     static func applyDerivativeResize(
         _ texture: MTLTexture,
         derivative: ImageDerivativeSpec,
@@ -2597,23 +2478,7 @@ extension ImageNode {
         profile: RenderProfile,
         identifier: String? = nil
     ) throws -> MTLTexture {
-        let cacheKey = makeOutputContractCacheKey(
-            contract: contract,
-            inputTexture: texture,
-            sourceColorSpace: sourceColorSpace,
-            sourceAlphaType: sourceAlphaType,
-            profile: profile
-        )
-        let context = HarbethContext.shared
-        let cacheIdentity = cacheKey.isEffective
-            ? context.makeDerivedResourceIdentity(domain: .outputContract, fingerprint: cacheKey.key)
-            : nil
-        if let cacheIdentity,
-           let cached = context.cachedDerivedObject(for: cacheIdentity) as? OutputContractCacheEntry,
-           cached.sourceTexture === texture as AnyObject {
-            return cached.outputTexture
-        }
-
+        // 裸纹理可被下一帧覆写，转换像素只属于当前执行。
         var output = texture
         let toneMappingFilters = contract.toneMappingPolicy.makeToneMappingFilters(
             sourceColorSpace: sourceColorSpace,
@@ -2694,64 +2559,7 @@ extension ImageNode {
             io.bufferPixelFormat = targetPixelFormat
             output = try io.output()
         }
-        let didProduceNewTexture = output !== texture
-        if let cacheIdentity, didProduceNewTexture {
-            context.storeDerivedObject(
-                OutputContractCacheEntry(sourceTexture: texture, outputTexture: output),
-                byteCost: max(output.allocatedSize, 1),
-                for: cacheIdentity
-            )
-        }
         return output
     }
 
-    /// 输出 contract 缓存键。
-    /// 组成:`contract.fingerprint` + `inputTexture` 的
-    /// `ObjectIdentifier + width × height × pixelFormat`。
-    /// `ObjectIdentifier` 让 cache 在纹理被释放后自动失配(下次 miss 重建),
-    /// 不会跨 texture 误命中。
-    private static func makeOutputContractCacheKey(
-        contract: RenderOutputContract,
-        inputTexture: MTLTexture,
-        sourceColorSpace: ImageColorSpaceContract,
-        sourceAlphaType: AlphaType?,
-        profile: RenderProfile
-    ) -> (key: String, isEffective: Bool) {
-        let inputFingerprint = "tex|\(ObjectIdentifier(inputTexture).hashValue)|\(inputTexture.width)x\(inputTexture.height)|\(inputTexture.pixelFormat.rawValue)"
-        let key = [
-            "contract=\(contract.fingerprint)",
-            "srcColorSpace=\(sourceColorSpace.fingerprint)",
-            "srcAlpha=\(sourceAlphaType.map(String.init(describing:)) ?? "nil")",
-            "profile=\(profile.rawValue)",
-            inputFingerprint
-        ].joined(separator: "||")
-        let needsColor = !contract.colorSpace.makeColorConversionFilters(from: sourceColorSpace).isEmpty
-        let needsToneMapping = !contract.toneMappingPolicy.makeToneMappingFilters(
-            sourceColorSpace: sourceColorSpace,
-            targetColorSpace: contract.colorSpace
-        ).isEmpty
-        let needsAlpha: Bool
-        switch contract.alpha {
-        case .premultiplied, .forcePremultiply:
-            needsAlpha = sourceAlphaType != .premultiplied
-        case .nonPremultiplied, .forceUnpremultiply:
-            needsAlpha = sourceAlphaType != .nonPremultiplied
-        case .opaque:
-            needsAlpha = sourceAlphaType != .alphaIsOne
-        case .preserveInput:
-            needsAlpha = false
-        }
-        let needsPixelFormat: Bool
-        if let targetPixelFormat = contract.pixelFormat.metalPixelFormat {
-            needsPixelFormat = inputTexture.pixelFormat != targetPixelFormat
-        } else {
-            needsPixelFormat = false
-        }
-        let needsQuantization = contract.quantization.shouldApply(
-            sourcePixelFormat: inputTexture.pixelFormat,
-            target: contract.pixelFormat
-        )
-        let isEffective = needsColor || needsToneMapping || needsAlpha || needsQuantization || needsPixelFormat
-        return (key, isEffective)
-    }
 }

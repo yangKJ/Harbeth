@@ -69,20 +69,28 @@ kernel void ImageRegionLanczosTransform(texture2d<half, access::write> output [[
     float2 step = dst.zw / float2(output.get_width(), output.get_height());
     float3 position = float3(dst.x + (p.x + .5f) * step.x, dst.y + dst.w - (p.y + .5f) * step.y, 1);
     float z = dot(r2.xyz, position);
-    if (abs(z) < 1e-8f) { output.write(half4(0), p); return; }
+    if (!isfinite(z) || abs(z) < 1e-8f) { output.write(half4(0), p); return; }
     float2 q = float2(dot(r0.xyz, position), dot(r1.xyz, position)) / z;
     float2 dx = (float2(r0.x, r1.x) - q * r2.x) / z * step.x;
     float2 dy = (float2(r0.y, r1.y) - q * r2.y) / z * step.y;
     float2 footprint = max(float2(1), float2(length(float2(dx.x, dy.x)), length(float2(dx.y, dy.y))));
-    float2 radius = 3 * footprint;
-    int2 first = int2(ceil(q - radius - .5f));
-    int2 last = int2(floor(q + radius - .5f));
+    if (!all(isfinite(q)) || !all(isfinite(footprint)) || any(abs(q) > 1e8f)) {
+        output.write(half4(0), p); return;
+    }
+    float2 radius = 3 * min(footprint, float2(1e7f));
+    float2 first = ceil(q - radius - .5f);
+    float2 count = max(float2(1), floor(q + radius - .5f) - first + 1);
+    // 常规支持域逐点求值；大范围透视按全局格点分层积分，最多64×64次读取。
+    uint2 taps = uint2(min(count, float2(64)));
+    float2 stride = count / float2(taps);
     float4 sum = 0;
     float total = 0;
     int2 size = int2(source.get_width(), source.get_height());
-    for (int y = first.y; y <= last.y; ++y) {
+    for (uint iy = 0; iy < taps.y; ++iy) {
+        int y = int(first.y + floor((iy + .5f) * stride.y));
         float wy = regionLanczosWeight((y + .5f - q.y) / footprint.y);
-        for (int x = first.x; x <= last.x; ++x) {
+        for (uint ix = 0; ix < taps.x; ++ix) {
+            int x = int(first.x + floor((ix + .5f) * stride.x));
             float weight = wy * regionLanczosWeight((x + .5f - q.x) / footprint.x);
             int2 index = int2(x - int(src.x), int(src.y + src.w) - 1 - y);
             if (clamped || all(index >= 0) && all(index < size)) {
@@ -96,4 +104,38 @@ kernel void ImageRegionLanczosTransform(texture2d<half, access::write> output [[
     value.a = clamp(value.a, 0.0f, 1.0f);
     if (value.a == 0) value.rgb = 0;
     output.write(half4(value), p);
+}
+
+// 可分离仿射缩小保留完整L3支持域，以Float32中间表面避免两次量化。
+kernel void ImageRegionLanczosAxis(texture2d<float, access::write> output [[texture(0)]],
+    texture2d<float, access::read> source [[texture(1)]], constant float4 &src [[buffer(0)]],
+    constant float4 &dst [[buffer(1)]], constant float4 &r0 [[buffer(2)]], constant float4 &r1 [[buffer(3)]],
+    constant float4 &r2 [[buffer(4)]], constant bool &clamped [[buffer(5)]],
+    constant uint &axis [[buffer(6)]], constant float2 &outputSize [[buffer(7)]],
+    uint2 p [[thread_position_in_grid]]) {
+    if (p.x >= output.get_width() || p.y >= output.get_height()) return;
+    float step = axis == 0 ? dst.z / outputSize.x : dst.w / outputSize.y;
+    float position = axis == 0 ? dst.x + (p.x + .5f) * step : dst.y + dst.w - (p.y + .5f) * step;
+    float q = axis == 0 ? (r0.x * position + r0.z) / r2.z : (r1.y * position + r1.z) / r2.z;
+    float footprint = max(1.0f, abs((axis == 0 ? r0.x : r1.y) / r2.z * step));
+    if (!isfinite(q) || abs(q) > 1e8f) { output.write(float4(0), p); return; }
+    int first = int(ceil(q - 3 * footprint - .5f));
+    int last = int(floor(q + 3 * footprint - .5f));
+    float4 sum = 0;
+    float total = 0;
+    for (int i = first; i <= last; ++i) {
+        float weight = regionLanczosWeight((i + .5f - q) / footprint);
+        int2 index = axis == 0 ? int2(i - int(src.x), p.y)
+            : int2(p.x, int(src.y + src.w) - 1 - i);
+        if (clamped || all(index >= 0) && index.x < int(source.get_width()) && index.y < int(source.get_height())) {
+            sum += source.read(uint2(clamp(index, int2(0), int2(source.get_width(), source.get_height()) - 1))) * weight;
+        }
+        total += weight;
+    }
+    float4 value = abs(total) > 1e-8f ? sum / total : float4(0);
+    if (axis == 1) {
+        value.a = clamp(value.a, 0.0f, 1.0f);
+        if (value.a == 0) value.rgb = 0;
+    }
+    output.write(value, p);
 }

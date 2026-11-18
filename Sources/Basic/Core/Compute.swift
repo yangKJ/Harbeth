@@ -108,6 +108,8 @@ struct Compute {
         let pipelineState = descriptor.functionIdentity.primaryName == kernel
         ? try makeComputePipelineState(with: identity)
         : try makeComputePipelineState(with: kernel)
+        if let region = filter as? ImageRegionTransform,
+           let output = try LanczosResampling.encodeRegion(filter: region, commandBuffer: commandBuffer, textures: textures, descriptor: descriptor) { return output }
         if filter is C7Resize || filter is C7LanczosResize,
            let output = try LanczosResampling.encode(commandBuffer: commandBuffer, textures: textures, descriptor: descriptor) { return output }
         if filter is TemporaryTextureRequirementProviding, let output = try OutlineFlatClassification.encode(commandBuffer: commandBuffer, textures: textures, descriptor: descriptor, identity: identity) { return output }
@@ -148,6 +150,12 @@ struct Compute {
             switch res {
             case .success(let pipelineState):
                 do {
+                    if let region = execution.value.2 as? ImageRegionTransform,
+                       let output = try LanczosResampling.encodeRegion(filter: region, commandBuffer: execution.value.0,
+                            textures: execution.value.1, descriptor: execution.value.4) {
+                        complete(.success(output))
+                        return
+                    }
                     if execution.value.2 is C7Resize || execution.value.2 is C7LanczosResize,
                        let output = try LanczosResampling.encode(commandBuffer: execution.value.0, textures: execution.value.1, descriptor: execution.value.4) {
                         complete(.success(output)); return

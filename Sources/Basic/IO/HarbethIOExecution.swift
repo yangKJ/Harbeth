@@ -265,6 +265,17 @@ private extension HarbethIO {
             }
             return outputPixelFormat.metalPixelFormat
         }()
+        if let outputColorSpace, !outputColorSpace.preservesInput {
+            let node = ImageNode.source(try makeImageSource()).applying(filters: filters)
+            var frame = try node.makeFrame(profile: profile, derivative: derivative, outputColorSpace: outputColorSpace)
+            if let format = targetPixelFormat ?? bufferPixelFormat {
+                frame = try frame.converted(to: RenderOutputContract(
+                    pixelFormat: PixelFormatContract(pixelFormat: format, preservesInput: false)
+                ))
+            }
+            let texture = frame.lease == nil ? frame.texture : try frame.makeIndependentTexture()
+            return (texture, outputColorSpace)
+        }
         if let prepared = try makeImageSource().planeAwareIO(filters: filters, profile: profile, identifier: identifier,
                                                             derivative: derivative ?? profile.defaultDerivativeSpec) {
             // 即便没有用户滤镜，也在同一程序末端完成目标格式物化。

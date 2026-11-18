@@ -607,7 +607,7 @@ final class ImageNodeTests: XCTestCase {
         XCTAssertEqual(context.debugCacheSnapshot().imageResolutionCount, 0)
     }
 
-    func testResetCachesClearsOutputContractTextureCache() throws {
+    func testOutputContractConversionUsesCurrentTextureContents() throws {
         let context = HarbethContext.shared
         context.resetCaches()
         let input = try makeTexture(width: 1, height: 1, pixel: [128, 64, 32, 128])
@@ -619,6 +619,10 @@ final class ImageNodeTests: XCTestCase {
             sourceAlphaType: .nonPremultiplied,
             profile: .stablePreview
         )
+        let replacement: [UInt8] = [64, 128, 32, 128]
+        replacement.withUnsafeBytes {
+            input.replace(region: MTLRegionMake2D(0, 0, 1, 1), mipmapLevel: 0, withBytes: $0.baseAddress!, bytesPerRow: 4)
+        }
         let second = try ImageNode.applyOutputContractIfNeeded(
             contract,
             to: input,
@@ -626,7 +630,8 @@ final class ImageNodeTests: XCTestCase {
             profile: .stablePreview
         )
 
-        XCTAssertTrue(first === second)
+        XCTAssertFalse(first === second)
+        XCTAssertNotEqual(first.c7.bytes(), second.c7.bytes())
 
         context.resetCaches()
 

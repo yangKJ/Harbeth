@@ -293,9 +293,11 @@ public enum ImageSource {
             }
             return C7Size(width: Int(extent.width), height: Int(extent.height))
         case .image(let image):
-            let pixelWidth = max(Int((image.size.width * image.scale).rounded()), 1)
-            let pixelHeight = max(Int((image.size.height * image.scale).rounded()), 1)
-            return C7Size(width: pixelWidth, height: pixelHeight)
+            #if os(iOS) || os(tvOS)
+            // 非正向图像由解码器正规化后取尺寸，避免规划与实际旋转结果不一致。
+            guard image.imageOrientation == .up else { return nil }
+            #endif
+            return image.cgImage.map { C7Size(cgImage: $0) }
         case .pixelBuffer(let pixelBuffer):
             return C7Size(pixelBuffer: pixelBuffer)
         case .sampleBuffer(let sampleBuffer):

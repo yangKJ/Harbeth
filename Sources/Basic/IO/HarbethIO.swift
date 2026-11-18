@@ -132,9 +132,13 @@ public extension HarbethIO {
     }
 
     /// Synchronously renders the current source and filter chain.
+    /// 显式颜色输出在图像和图像缓冲交付前完成像素转换，未标记位图沿用已有解码默认配置。
     /// - Returns: The rendered result after GPU work required by this output has completed.
     /// - Throws: 有滤镜或需物化色彩空间时，不支持原类型输出的输入返回 `renderableUnsupportedInputType`。
     func output(outputColorSpace: ImageColorSpaceContract? = nil) throws -> Dest {
+        if let outputColorSpace, !outputColorSpace.preservesInput, (element as? MTLTexture) == nil {
+            return try colorManagedOutput(outputColorSpace)
+        }
         if self.filters.isEmpty {
             // 空滤镜仅在需要为非 texture 输入物化色彩空间合同时进入下方统一分发。
             guard outputColorSpace != nil, (element as? MTLTexture) == nil else {
@@ -188,6 +192,21 @@ public extension HarbethIO {
     ///   - complete: Receives the rendered result or a structured ``HarbethError``.
     @discardableResult
     func transmitOutput(outputColorSpace: ImageColorSpaceContract? = nil, complete: @escaping @Sendable (Result<Dest, HarbethError>) -> Void) -> RenderSubmissionHandle {
+        if let outputColorSpace, !outputColorSpace.preservesInput, (element as? MTLTexture) == nil {
+            return HarbethContext.shared.submitRenderOperation(
+                sourceIdentifier: identifier,
+                policy: submissionPolicy,
+                execute: { submission in
+                    do {
+                        let output = HarbethUncheckedTransfer(value: try self.colorManagedOutput(outputColorSpace))
+                        submission.deliver { complete(.success(output.value)) }
+                    } catch {
+                        submission.deliver { complete(.failure(HarbethError.toHarbethError(error))) }
+                    }
+                },
+                onDiscard: { _ in complete(.failure(.renderableTaskCancelled)) }
+            )
+        }
         if self.filters.isEmpty {
             do {
                 complete(.success(try output(outputColorSpace: outputColorSpace)))
@@ -906,6 +925,54 @@ extension HarbethIO {
     }
 
     // MARK: - Internal Destination Materialization
+
+    /// 显式颜色输出共用帧转换，先兑现像素，再物化对应的原输入类型。
+    private func colorManagedOutput(_ colorSpace: ImageColorSpaceContract) throws -> Dest {
+        switch element {
+        case is C7Image, is CIImage: break
+        case let value where CFGetTypeID(value as CFTypeRef) == CGImage.typeID
+            || CFGetTypeID(value as CFTypeRef) == CVPixelBufferGetTypeID()
+            || CFGetTypeID(value as CFTypeRef) == CMSampleBufferGetTypeID(): break
+        default: throw HarbethError.renderableUnsupportedInputType
+        }
+        let node = ImageNode.source(try makeImageSource()).applying(filters: filters)
+        var frame = try node.makeFrame(profile: renderProfile, outputColorSpace: colorSpace)
+        if let bufferPixelFormat {
+            frame = try frame.converted(to: RenderOutputContract(
+                pixelFormat: PixelFormatContract(pixelFormat: bufferPixelFormat, preservesInput: false)
+            ))
+        }
+        defer { withExtendedLifetime(frame) {} }
+        switch element {
+        case is C7Image:
+            guard let output = frame.texture.c7.toImage(colorSpace: frame.colorSpace, alphaType: frame.alphaType) else {
+                throw HarbethError.texture2Image
+            }
+            return try castOutput(output)
+        case is CIImage:
+            guard let cgImage = frame.texture.c7.toCGImage(colorSpace: frame.colorSpace, alphaType: frame.alphaType) else {
+                throw HarbethError.texture2Image
+            }
+            let output = CIImage(cgImage: cgImage)
+            return try castOutput(mirrored ? output.oriented(.downMirrored) : output)
+        case let value where CFGetTypeID(value as CFTypeRef) == CGImage.typeID:
+            guard let output = frame.texture.c7.toCGImage(colorSpace: frame.colorSpace, alphaType: frame.alphaType) else {
+                throw HarbethError.texture2Image
+            }
+            return try castOutput(output)
+        case let value where CFGetTypeID(value as CFTypeRef) == CVPixelBufferGetTypeID():
+            let source = value as! CVPixelBuffer
+            let output = try source.c7.makeCompatibleOutputPixelBuffer(for: frame.texture)
+            output.c7.setColorSpaceAttachments(colorSpace)
+            return try castOutput(output)
+        default:
+            let source = element as! CMSampleBuffer
+            guard let pixelBuffer = CMSampleBufferGetImageBuffer(source) else { throw HarbethError.CMSampleBufferToCVPixelBuffer }
+            let output = try pixelBuffer.c7.makeCompatibleOutputPixelBuffer(for: frame.texture)
+            output.c7.setColorSpaceAttachments(colorSpace)
+            return try castOutput(makeSampleBuffer(pixelBuffer: output, source: source, outputColorSpace: colorSpace))
+        }
+    }
 
     private func filtering(pixelBuffer: CVPixelBuffer, outputColorSpace: ImageColorSpaceContract? = nil) throws -> CVPixelBuffer {
         if var prepared = try ImageSource.pixelBuffer(pixelBuffer).planeAwareIO(filters: filters, profile: renderProfile, identifier: identifier) {

@@ -47,7 +47,7 @@ public struct PixelGraphOperation: C7FilterProtocol {
 }
 
 /// Samples a finite source region using an inverse projective mapping in pixel coordinates.
-public struct ImageRegionTransform: C7FilterProtocol {
+public struct ImageRegionTransform: C7FilterProtocol, GeometryParameterValidating {
     public enum Interpolation: Sendable { case linear, lanczos }
     public let sourceRegion: CGRect
     public let outputRegion: CGRect
@@ -64,7 +64,26 @@ public struct ImageRegionTransform: C7FilterProtocol {
         self.outputSize = outputSize
         self.interpolation = interpolation
     }
-    public func resize(input size: C7Size) -> C7Size { outputSize.map { C7Size(width: Int($0.width), height: Int($0.height)) } ?? size }
+    func validateGeometryParameters() throws {
+        let values = [sourceRegion.minX, sourceRegion.minY, sourceRegion.width, sourceRegion.height,
+                      outputRegion.minX, outputRegion.minY, outputRegion.width, outputRegion.height]
+        guard values.allSatisfy({ $0.isFinite && abs($0) < 1e7 }),
+              sourceRegion.width > 0, sourceRegion.height > 0, outputRegion.width > 0, outputRegion.height > 0,
+              (0..<3).allSatisfy({ inverse[$0].x.isFinite && inverse[$0].y.isFinite && inverse[$0].z.isFinite }) else {
+            throw HarbethError.configurationInvalid("区域变换需要有限矩阵、有效范围和正尺寸。")
+        }
+        if let outputSize {
+            guard outputSize.width.isFinite, outputSize.height.isFinite,
+                  outputSize.width >= 1, outputSize.height >= 1,
+                  outputSize.width < 1e7, outputSize.height < 1e7 else {
+                throw HarbethError.configurationInvalid("区域变换输出尺寸必须能表示为正整数。")
+            }
+        }
+    }
+    public func resize(input size: C7Size) -> C7Size {
+        guard let outputSize, (try? validateGeometryParameters()) != nil else { return size }
+        return C7Size(width: Int(outputSize.width), height: Int(outputSize.height))
+    }
     public var modifier: ModifierEnum { .compute(kernel: interpolation == .lanczos ? "ImageRegionLanczosTransform" : "ImageRegionTransform") }
     public var kernelParameterBindings: [KernelParameterBinding] {
         let rows = (0..<3).map { SIMD4<Float>(inverse[0][$0], inverse[1][$0], inverse[2][$0], 0) }

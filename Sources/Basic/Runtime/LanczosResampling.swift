@@ -57,4 +57,50 @@ enum LanczosResampling {
         }
         return output
     }
+
+    static func encodeRegion(filter: ImageRegionTransform, commandBuffer: MTLCommandBuffer,
+                             textures: [MTLTexture], descriptor: KernelDescriptor) throws -> MTLTexture? {
+        let matrix = filter.inverse
+        let identity = descriptor.functionIdentity
+        guard filter.interpolation == .lanczos, textures.count == 2,
+              identity.functionConstants.isEmpty,
+              identity.librarySource == .harbethFramework || (identity.librarySource == .automatic
+                && BuiltinKernelAdmission.isUnmodified(["ImageRegionLanczosTransform"])),
+              matrix[0].y == 0, matrix[0].z == 0, matrix[1].x == 0, matrix[1].z == 0,
+              matrix[2].z.isFinite, abs(matrix[2].z) > 1e-8 else { return nil }
+        let input = textures[1], output = textures[0]
+        let footprint = SIMD2(abs(matrix[0].x / matrix[2].z) * Float(filter.outputRegion.width) / Float(output.width),
+                              abs(matrix[1].y / matrix[2].z) * Float(filter.outputRegion.height) / Float(output.height))
+        let scratchBytes = output.width * input.height * 16
+        guard max(footprint.x, footprint.y) > 10, max(footprint.x, footprint.y) <= 2048,
+              matrix[2].x.isFinite, matrix[2].y.isFinite,
+              abs(matrix[2].x / matrix[2].z) < 1e7, abs(matrix[2].y / matrix[2].z) < 1e7,
+              scratchBytes <= byteLimit else { return nil }
+        guard let pipeline = try? HarbethContext.shared.makeComputePipelineState(identity: .init(
+            kind: .compute, primaryName: "ImageRegionLanczosAxis", librarySource: .harbethFramework)),
+              let lease = try? TextureLoader.makeTextureLease(width: output.width, height: input.height, options: [
+            .texturePixelFormat: MTLPixelFormat.rgba32Float, .textureStorageMode: MTLStorageMode.private,
+            .textureUsage: MTLTextureUsage([.shaderRead, .shaderWrite])
+              ], identifier: "ImageRegionLanczosAxis") else { return nil }
+        commandBuffer.addCompletedHandler { _ in lease.release() }
+        for axis: UInt32 in 0..<2 {
+            let destination = axis == 0 ? lease.texture : output
+            guard let encoder = commandBuffer.makeComputeCommandEncoder() else { throw HarbethError.makeComputeCommandEncoder }
+            encoder.setComputePipelineState(pipeline)
+            encoder.setTexture(destination, index: 0)
+            encoder.setTexture(axis == 0 ? input : lease.texture, index: 1)
+            do { try KernelBindingEncoder.encode(descriptor.parameterBindings, stage: .compute, on: encoder) }
+            catch { encoder.endEncoding(); throw error }
+            var pass = axis
+            var size = SIMD2(Float(output.width), Float(output.height))
+            encoder.setBytes(&pass, length: MemoryLayout<UInt32>.size, index: 6)
+            encoder.setBytes(&size, length: MemoryLayout<SIMD2<Float>>.size, index: 7)
+            let width = min(16, pipeline.threadExecutionWidth)
+            let height = max(1, min(16, pipeline.maxTotalThreadsPerThreadgroup / width))
+            encoder.dispatchThreads(MTLSize(width: destination.width, height: destination.height, depth: 1),
+                threadsPerThreadgroup: MTLSize(width: width, height: height, depth: 1))
+            encoder.endEncoding()
+        }
+        return output
+    }
 }

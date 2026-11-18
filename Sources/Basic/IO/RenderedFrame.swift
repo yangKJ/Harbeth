@@ -1135,15 +1135,55 @@ private extension FrameOrientation {
 public extension RenderedFrame {
     /// Applies an explicit output contract through the existing image execution machinery.
     func converted(to contract: RenderOutputContract) throws -> RenderedFrame {
+        defer { withExtendedLifetime(self) {} }
         guard contract != .preserveInput else { return self }
         let output = try ImageNode.applyOutputContractIfNeeded(contract, to: texture,
             sourceColorSpace: outputColorSpaceContract, sourceAlphaType: alphaType,
             profile: profile, identifier: identifier)
-        return RenderedFrame(texture: output, colorSpace: contract.colorSpace.cgColorSpace ?? colorSpace,
-            outputColorSpaceContract: contract.colorSpace == .preserveInput ? outputColorSpaceContract : contract.colorSpace,
-            outputToneMappingPolicy: contract.toneMappingPolicy,
-            sourceDescriptor: sourceDescriptor, alphaType: contract.alpha.expectedAlphaType ?? alphaType,
-            profile: profile, token: token, metadata: metadata)
+        let aliasesSource = output === texture
+        var outputMetadata = metadata
+        if !contract.colorSpace.preservesInput {
+            outputMetadata["outputColorSpace"] = contract.colorSpace.name
+            outputMetadata["outputDynamicRange"] = contract.colorSpace.dynamicRange.rawValue
+        }
+        return RenderedFrame(
+            texture: output,
+            colorSpace: contract.colorSpace.cgColorSpace ?? colorSpace,
+            outputColorSpaceContract: contract.colorSpace.preservesInput ? outputColorSpaceContract : contract.colorSpace,
+            outputToneMappingPolicy: contract.toneMappingPolicy == .preserveInput ? outputToneMappingPolicy : contract.toneMappingPolicy,
+            sourceDescriptor: sourceDescriptor,
+            derivative: derivative,
+            resolvedOutputSize: resolvedOutputSize,
+            renderIntent: renderIntent,
+            sourceTier: sourceTier,
+            alphaType: contract.alpha.expectedAlphaType ?? alphaType,
+            cachePolicy: cachePolicy,
+            semantic: semantic,
+            orientation: orientation,
+            profile: profile,
+            token: token,
+            metadata: outputMetadata,
+            lease: aliasesSource ? lease : nil,
+            previewHostPayload: aliasesSource ? previewHostPayload : nil,
+            sourceOwner: aliasesSource ? RenderedFrameSourceOwner(self) : nil
+        )
+    }
+
+    /// 输出参数要求实际转换像素；未知来源或目标颜色配置无法兑现时明确返回错误。
+    internal func convertingOutput(to requested: ImageColorSpaceContract?) throws -> RenderedFrame {
+        guard let requested, !requested.preservesInput else { return self }
+        guard let target = requested.cgColorSpace else {
+            throw HarbethError.configurationInvalid("输出颜色转换需要可解析的目标配置。")
+        }
+        guard colorSpace != nil, !outputColorSpaceContract.preservesInput else {
+            throw HarbethError.configurationInvalid("输出颜色转换需要明确的来源颜色配置。")
+        }
+        if outputColorSpaceContract == requested { return self }
+        let converted = try self.converted(to: target)
+        let format: MTLPixelFormat = requested.dynamicRange == .standardDynamicRange ? texture.pixelFormat : .rgba16Float
+        return try converted.converted(to: RenderOutputContract(
+            pixelFormat: PixelFormatContract(pixelFormat: format, preservesInput: false)
+        ))
     }
 
     /// Converts an arbitrary ICC-tagged frame directly into a caller-selected color space.
@@ -1176,8 +1216,15 @@ public extension RenderedFrame {
         command.waitUntilCompleted()
         if let error = command.error { throw HarbethError.error(error) }
         try Task.checkCancellation()
-        let result = RenderedFrame(texture: output, colorSpace: colorSpace, sourceDescriptor: sourceDescriptor,
-            alphaType: source.alphaType, profile: profile, token: token, metadata: metadata)
+        var outputMetadata = metadata
+        let outputContract = ImageColorSpaceContract(colorSpace: colorSpace)
+        outputMetadata["outputColorSpace"] = outputContract.name
+        outputMetadata["outputDynamicRange"] = outputContract.dynamicRange.rawValue
+        let result = RenderedFrame(texture: output, colorSpace: colorSpace,
+            outputToneMappingPolicy: outputToneMappingPolicy, sourceDescriptor: sourceDescriptor,
+            derivative: derivative, resolvedOutputSize: resolvedOutputSize, renderIntent: renderIntent,
+            sourceTier: sourceTier, alphaType: source.alphaType, cachePolicy: cachePolicy,
+            semantic: semantic, orientation: orientation, profile: profile, token: token, metadata: outputMetadata)
         return alphaType == .nonPremultiplied
             ? try result.converted(to: RenderOutputContract(alpha: .nonPremultiplied)) : result
     }
