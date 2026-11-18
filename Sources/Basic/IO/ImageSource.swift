@@ -15,6 +15,8 @@ import CoreMedia
 /// 高级 texture-first 渲染的统一输入面。
 public enum ImageSource {
     case texture(MTLTexture)
+    /// 已物化的帧；来源与节点持有其租约，裸纹理物化会创建独立副本。
+    case renderedFrame(RenderedFrame)
     case image(C7Image)
     case cgImage(CGImage)
     case ciImage(CIImage)
@@ -27,6 +29,8 @@ public enum ImageSource {
         switch self {
         case .texture(let texture):
             return texture
+        case .renderedFrame(let frame):
+            return try frame.makeIndependentTexture()
         case .image(let image):
             return try TextureLoader(with: image).texture
         case .cgImage(let image):
@@ -49,6 +53,7 @@ public enum ImageSource {
     }
 
     public var orientation: FrameOrientation {
+        if case .renderedFrame(let frame) = self { return frame.orientation }
         #if os(iOS) || os(tvOS)
         if case .image(let image) = self {
             switch image.imageOrientation {
@@ -69,6 +74,8 @@ public enum ImageSource {
 
     public var colorSpace: CGColorSpace? {
         switch self {
+        case .renderedFrame(let frame):
+            return frame.colorSpace ?? frame.outputColorSpaceContract.cgColorSpace
         case .image(let image):
             return image.c7.toCGImage()?.colorSpace
         case .cgImage(let image):
@@ -96,7 +103,7 @@ public enum ImageSource {
             attachmentColorSpace = pixelBuffer.c7.contract.attachmentColorSpace
         case .sampleBuffer(let sampleBuffer):
             attachmentColorSpace = sampleBuffer.c7.contract.pixelBufferContract?.attachmentColorSpace
-        case .texture, .image, .cgImage, .ciImage, .data, .asset:
+        case .texture, .renderedFrame, .image, .cgImage, .ciImage, .data, .asset:
             attachmentColorSpace = nil
         }
         return attachmentColorSpace.map {
@@ -106,6 +113,7 @@ public enum ImageSource {
 
     public var alphaType: AlphaType {
         switch self {
+        case .renderedFrame(let frame): return frame.alphaType
         case .cgImage(let image): return image.c7.alphaType
         case .ciImage:
             return .premultiplied
@@ -136,6 +144,7 @@ public enum ImageSource {
     public var kindName: String {
         switch self {
         case .texture: return "texture"
+        case .renderedFrame: return "renderedFrame"
         case .image: return "image"
         case .cgImage: return "cgImage"
         case .ciImage: return "ciImage"
@@ -150,13 +159,14 @@ public enum ImageSource {
         switch self {
         case .asset(let asset):
             return asset.loadingOptions
-        case .texture, .image, .cgImage, .ciImage, .pixelBuffer, .sampleBuffer, .data:
+        case .texture, .renderedFrame, .image, .cgImage, .ciImage, .pixelBuffer, .sampleBuffer, .data:
             return .default
         }
     }
 
     public var sourceTier: ImageSourceTier {
         switch self {
+        case .renderedFrame(let frame): return frame.sourceTier
         case .asset(let asset):
             return asset.sourceTier
         case .texture, .image, .cgImage, .ciImage, .pixelBuffer, .sampleBuffer, .data:
@@ -166,6 +176,17 @@ public enum ImageSource {
 
     public var descriptor: ImageSourceDescriptor {
         switch self {
+        case .renderedFrame(let frame):
+            return ImageSourceDescriptor(
+                kind: kindName,
+                sourceTier: sourceTier,
+                alphaType: frame.alphaType,
+                orientation: frame.orientation,
+                cachePolicy: cachePolicy,
+                semantic: frame.semantic,
+                colorProfile: colorProfile,
+                texturePixelFormat: PixelFormatContract(pixelFormat: frame.pixelFormat, preservesInput: false)
+            )
         case .texture(let texture):
             return ImageSourceDescriptor(
                 kind: kindName,
@@ -246,7 +267,7 @@ public enum ImageSource {
             } else {
                 image = nil
             }
-        case .texture, .ciImage, .pixelBuffer, .sampleBuffer, .data:
+        case .texture, .renderedFrame, .ciImage, .pixelBuffer, .sampleBuffer, .data:
             image = nil
         }
         return image.map {
@@ -259,6 +280,8 @@ public enum ImageSource {
 
     var resolvedSizeHint: C7Size? {
         switch self {
+        case .renderedFrame(let frame):
+            return frame.resolvedOutputSize
         case .texture(let texture):
             return C7Size(texture: texture)
         case .cgImage(let image):
@@ -291,6 +314,12 @@ public enum ImageSource {
 
     var resolutionFingerprint: String {
         switch self {
+        case .renderedFrame(let frame):
+            return [
+                descriptor.fingerprint,
+                "frame=\(frame.identifier):\(frame.generation):\(frame.resolvedOutputSize.width)x\(frame.resolvedOutputSize.height)",
+                "texture=\(ObjectIdentifier(frame.texture).hashValue)"
+            ].joined(separator: "|")
         case .texture(let texture):
             return [
                 descriptor.fingerprint,
@@ -393,6 +422,11 @@ private extension Data {
 }
 
 extension ImageSource {
+    var retainedFrame: RenderedFrame? {
+        if case .renderedFrame(let frame) = self { return frame }
+        return nil
+    }
+
     /// 保留公开来源身份，只为实际执行构建内部解码阶段。
     func planeAwareIO(filters: [C7FilterProtocol], profile: RenderProfile, identifier: String, derivative: ImageDerivativeSpec? = nil) throws -> HarbethIO<MTLTexture>? {
         guard let source = try TextureLoader.planeAwarePreparation(self) else { return nil }

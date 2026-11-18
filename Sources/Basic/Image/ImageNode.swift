@@ -36,6 +36,8 @@ final class ImageNodeSourcePreparation {
     func texture(for source: ImageSource) throws -> MTLTexture {
         switch source {
         case .texture(let texture): return texture
+        case .renderedFrame(let frame) where frame.resolvedOutputSize == C7Size(texture: frame.texture):
+            return frame.texture
         case .pixelBuffer, .sampleBuffer:
             // 视频帧已有尺寸提示，规划不需要物化，直接保留既有桥接路径。
             return try source.makeTexture()
@@ -246,7 +248,7 @@ extension ImageNode {
 
     public func applying(pluginOutput: PluginOutput, mode: EditRecipeMode = .preview) throws -> ImageNode {
         switch pluginOutput {
-        case .texture, .image, .cgImage, .ciImage, .pixelBuffer, .sampleBuffer:
+        case .texture, .frame, .image, .cgImage, .ciImage, .pixelBuffer, .sampleBuffer:
             return ImageNode.source(try pluginOutput.makeImageSource())
         case .filters(let filters):
             return applying(filters: filters)
@@ -259,23 +261,43 @@ extension ImageNode {
         }
     }
 
+    /// 立即物化分析帧并同步调用插件；返回的滤镜和编辑配方仍作用于原输入。
+    /// 无需分析帧的固定配方应使用 applying(pluginOutput:)，避免额外执行上游。
     public func applying<P: Plugin>(
         plugin: P,
         profile: RenderProfile = .stablePreview,
         derivative: ImageDerivativeSpec? = nil,
-        mode: EditRecipeMode = .preview
+        mode: EditRecipeMode = .preview,
+        report: ((PluginExecutionReport) -> Void)? = nil
     ) throws -> ImageNode {
-        let frame = try makeFrame(profile: profile, derivative: derivative)
+        let boundary = PluginOutputBoundary(plugin: plugin)
+        try boundary.validate(profile: profile)
+        let inputProfile: RenderProfile = boundary.capability.requiresReadback ? .readbackQuality : profile
+        let frame = try makeFrame(profile: inputProfile, derivative: derivative)
         let context = PluginContext(
             profile: profile,
-            identifier: plugin.pluginIdentifier,
+            identifier: boundary.identifier,
             metadata: [
-                "pluginIdentifier": plugin.pluginIdentifier,
-                "pluginBoundaryKind": plugin.capability.kind.rawValue,
+                "pluginIdentifier": boundary.identifier,
+                "pluginBoundaryKind": boundary.kind.rawValue,
             ]
         )
-        let output = try plugin.makeOutput(frame: frame, context: context)
-        return try applying(pluginOutput: output, mode: mode)
+        let output = try boundary.makeOutput(input: frame, context: context)
+        let diagnostics: PluginDiagnostics?
+        if report != nil {
+            diagnostics = try plugin.makeDiagnostics(frame: frame)
+        } else {
+            diagnostics = nil
+        }
+        let node = try applying(pluginOutput: output, mode: mode)
+        report?(PluginExecutionReport(
+            pluginIdentifier: boundary.identifier,
+            capability: boundary.capability,
+            inputToken: frame.token,
+            outputKind: output.kind,
+            diagnostics: diagnostics
+        ))
+        return boundary.capability.cacheable ? node : node.withCachePolicy(.transient)
     }
 
     private func prepareExecution(
@@ -715,13 +737,18 @@ extension ImageNode {
             renderedTexture: texture,
             renderRecipe: renderRecipe
         )
-        var renderedMetadata = metadata
+        let sourceFrame = primarySource.retainedFrame
+        let declaredToneMappingPolicy = diagnostics.outputContract.toneMappingPolicy
+        let toneMappingPolicy = declaredToneMappingPolicy == .preserveInput
+            ? sourceFrame?.outputToneMappingPolicy ?? .preserveInput : declaredToneMappingPolicy
+        var renderedMetadata = sourceFrame?.metadata ?? [:]
+        renderedMetadata.merge(metadata) { _, requested in requested }
         renderedMetadata["filterChainFingerprint"] = FilterChainRecipe(filters: renderRecipe.filters).fingerprint
         renderedMetadata["renderExecutionFingerprint"] = prepared.executionFingerprint
         renderedMetadata["renderGraphFingerprint"] = diagnostics.graphFingerprint
         renderedMetadata["outputDynamicRange"] = frameOutputColorSpace.dynamicRange.rawValue
         renderedMetadata["outputColorSpace"] = frameOutputColorSpace.name
-        renderedMetadata["outputToneMappingPolicy"] = diagnostics.outputContract.toneMappingPolicy.rawValue
+        renderedMetadata["outputToneMappingPolicy"] = toneMappingPolicy.rawValue
         renderedMetadata["performanceMonitoringIdentifier"] = metricsIdentifier
         let token = FrameRenderToken(identifier: frameIdentifier, generation: FrameGeneration.next())
         let logicalOutputSize = C7Size(texture: texture)
@@ -729,7 +756,7 @@ extension ImageNode {
             texture: texture,
             colorSpace: colorSpace,
             outputColorSpaceContract: frameOutputColorSpace,
-            outputToneMappingPolicy: diagnostics.outputContract.toneMappingPolicy,
+            outputToneMappingPolicy: toneMappingPolicy,
             sourceDescriptor: primarySource.descriptor,
             derivative: effectiveDerivative,
             resolvedOutputSize: logicalOutputSize,
@@ -742,8 +769,11 @@ extension ImageNode {
             profile: prepared.profile,
             token: token,
             metadata: renderedMetadata,
-            lease: lease,
-            previewHostPayload: previewHostPayload
+            lease: lease ?? (sourceFrame?.texture === texture ? sourceFrame?.lease : nil),
+            previewHostPayload: previewHostPayload,
+            sourceOwner: sourceFrame.flatMap { source in
+                source.texture === texture ? RenderedFrameSourceOwner(source) : nil
+            }
         )
     }
 

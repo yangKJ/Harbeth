@@ -310,6 +310,25 @@ extension ImageNode {
                 generation: generation,
                 alphaType: alphaType
             )
+        case .renderedFrame(let frame):
+            guard frame.resolvedOutputSize == C7Size(texture: frame.texture) else {
+                throw HarbethError.configurationInvalid("外部命令编码需要已物化逻辑范围的完整帧。")
+            }
+            frame.lease?.retainUntilCompleted(by: commandBuffer)
+            commandBuffer.addCompletedHandler { _ in withExtendedLifetime(frame) {} }
+            let output = try ImageNode.texture(frame.texture).applying(filters: chain).encodeFrame(
+                into: commandBuffer,
+                inputColorSpace: inputColorSpace,
+                workingColorSpace: workingColorSpace,
+                inputColorProfile: inputColorProfile,
+                context: context,
+                pixelFormat: pixelFormat,
+                profile: profile,
+                identifier: identifier,
+                generation: generation,
+                alphaType: alphaType
+            )
+            return output.retainingSourceFrame(frame, inheritingMetadata: true)
         case .pixelBuffer(let buffer):
             var io = HarbethIO<CVPixelBuffer>(element: buffer, filters: chain, identifier: identifier)
             io.bufferPixelFormat = pixelFormat

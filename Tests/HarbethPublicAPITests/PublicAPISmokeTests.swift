@@ -45,6 +45,15 @@ final class PublicAPISmokeTests: XCTestCase {
         _ = (appendSingleFilter, appendFilterChain)
     }
 
+    func testPluginFrameAndReportingSurfaceCompiles() {
+        let source: (RenderedFrame) -> ImageNode = { ImageNode.source(.renderedFrame($0)) }
+        let output: (RenderedFrame) -> PluginOutput = { .frame($0) }
+        let apply: (ImageNode, any Plugin, ((PluginExecutionReport) -> Void)?) throws -> ImageNode = { node, plugin, report in
+            try node.applying(plugin: plugin, report: report)
+        }
+        _ = (source, output, apply)
+    }
+
     func testCanonicalImageNodeSurfaceCompiles() {
         let build: (MTLTexture) -> ImageNode = { texture in ImageNode.texture(texture).withCachePolicy(.transient) }
         let capability: (ImageNode) throws -> FrameProcessingCapability = { node in

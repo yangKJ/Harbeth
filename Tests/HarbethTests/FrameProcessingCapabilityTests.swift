@@ -205,8 +205,4 @@ private struct FrameCapabilityMetadataOnlySamplerFilter: RenderProtocol {
 
 private struct FrameCapabilityPluginBoundary: PluginBoundaryAdapter {
     let capability: PluginCapability
-
-    func render(input: RenderedFrame, context: PluginContext) throws -> RenderedFrame {
-        input
-    }
 }

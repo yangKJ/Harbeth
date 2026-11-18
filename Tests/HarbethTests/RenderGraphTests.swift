@@ -1876,8 +1876,4 @@ final class RenderGraphTests: XCTestCase {
 
 private struct MockPluginBoundaryAdapter: PluginBoundaryAdapter {
     let capability: PluginCapability
-
-    func render(input: RenderedFrame, context: PluginContext) throws -> RenderedFrame {
-        input
-    }
 }

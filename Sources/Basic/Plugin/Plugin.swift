@@ -19,6 +19,8 @@ public typealias PluginDiagnostics = [String: String]
 /// 这里不承载业务策略，只描述“插件算完之后，把什么交回 Harbeth”。
 public enum PluginOutput {
     case texture(MTLTexture)
+    /// 完整帧保留像素语义与租约；独立裸纹理由调用方保证生命周期。
+    case frame(RenderedFrame)
     case image(C7Image)
     case cgImage(CGImage)
     case ciImage(CIImage)
@@ -35,6 +37,8 @@ extension PluginOutput {
         switch self {
         case .texture:
             return "texture"
+        case .frame:
+            return "frame"
         case .image:
             return "image"
         case .cgImage:
@@ -58,7 +62,7 @@ extension PluginOutput {
 
     public var isSourceLike: Bool {
         switch self {
-        case .texture, .image, .cgImage, .ciImage, .pixelBuffer, .sampleBuffer:
+        case .texture, .frame, .image, .cgImage, .ciImage, .pixelBuffer, .sampleBuffer:
             return true
         case .filters, .editRecipe, .localEffect, .layerComposite:
             return false
@@ -69,6 +73,8 @@ extension PluginOutput {
         switch self {
         case .texture(let texture):
             return .texture(texture)
+        case .frame(let frame):
+            return .renderedFrame(frame)
         case .image(let image):
             return .image(image)
         case .cgImage(let image):
@@ -91,7 +97,11 @@ extension PluginOutput {
     }
 
     public func makePreviewFrame(profile: RenderProfile = .stablePreview) throws -> RenderedFrame {
-        try FrameRenderer(source: makeImageSource(), profile: profile).renderFrame()
+        if case .frame(let frame) = self {
+            if frame.profile == profile { return frame }
+            return try ImageNode.source(.renderedFrame(frame)).makeFrame(profile: profile)
+        }
+        return try FrameRenderer(source: makeImageSource(), profile: profile).renderFrame()
     }
 }
 
@@ -105,7 +115,7 @@ public protocol Plugin {
 
 public extension Plugin {
     var capability: PluginCapability {
-        .nativeMetal
+        .unverified
     }
 
     func makeOutput(frame: RenderedFrame, context: PluginContext) throws -> PluginOutput {
@@ -117,13 +127,13 @@ public extension Plugin {
     }
 }
 
-/// 适合“直接产出 texture / image / pixelBuffer / sampleBuffer”的插件。
+/// 输出分类标记，不额外约束返回类型；完整帧输出应使用 PluginOutput.frame。
 public protocol TexturePlugin: Plugin { }
 
-/// 适合“返回 filters / edit recipe / layer composite”的插件。
+/// 配方类插件的分类标记，不代表执行是惰性的；已准备的配方直接交给 pluginOutput 入口。
 public protocol FilterPlugin: Plugin { }
 
-/// 适合“返回 local effect / edit recipe”等局部编辑结果的插件。
+/// 局部效果插件的分类标记；单独的蒙版应先组成 LocalEffectRecipe 或 EditRecipe。
 public protocol MaskPlugin: Plugin { }
 
 @MainActor

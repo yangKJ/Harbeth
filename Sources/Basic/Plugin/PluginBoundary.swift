@@ -9,6 +9,7 @@ import Foundation
 
 /// 插件进入 Harbeth 的能力边界类型。
 public enum PluginBoundaryKind: String, Sendable, Codable, Equatable, Hashable {
+    case unverified
     case nativeMetal
     case compatibility
     case cpu
@@ -16,7 +17,9 @@ public enum PluginBoundaryKind: String, Sendable, Codable, Equatable, Hashable {
     case vision
 }
 
-/// 插件执行成本描述，供 Runtime 内部调度、诊断和缓存决策使用。
+/// 插件即时执行的自声明成本，不替代返回滤镜自身的像素合同。
+/// 入口校验低延迟资格、选择读回档位并限制结果缓存；CPU 与融合字段用于执行报告，
+/// 不表示外部工作已经进入 RenderGraph 的调度或融合。
 public struct PluginCapability: Sendable, Codable, Equatable, Hashable {
     public let kind: PluginBoundaryKind
     public let usesCPU: Bool
@@ -38,6 +41,16 @@ public struct PluginCapability: Sendable, Codable, Equatable, Hashable {
         self.cacheable = cacheable
         self.supportsLowLatencyFrameFlow = supportsLowLatencyFrameFlow
     }
+
+    /// 未声明能力时保守处理，避免自动承诺原生 GPU、可缓存或低延迟。
+    public static let unverified = PluginCapability(
+        kind: .unverified,
+        usesCPU: true,
+        breaksFusion: true,
+        requiresReadback: true,
+        cacheable: false,
+        supportsLowLatencyFrameFlow: false
+    )
 
     public static let nativeMetal = PluginCapability(
         kind: .nativeMetal,
@@ -96,4 +109,13 @@ public struct PluginContext: Sendable, Equatable {
         self.identifier = identifier
         self.metadata = metadata
     }
+}
+
+/// 仅在调用方请求报告时采集插件诊断；输入 token 用于关联本次分析帧。
+public struct PluginExecutionReport: Sendable {
+    public let pluginIdentifier: String
+    public let capability: PluginCapability
+    public let inputToken: FrameRenderToken
+    public let outputKind: String
+    public let diagnostics: PluginDiagnostics?
 }

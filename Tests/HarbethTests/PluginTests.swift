@@ -11,15 +11,15 @@ import ImageIO
 
 final class PluginTests: XCTestCase {
 
-    func testPluginDefaultCapabilityIsNativeMetal() {
+    func testPluginDefaultCapabilityIsConservative() {
         let plugin = MockFilterPlugin(output: .filters([]))
 
-        XCTAssertEqual(plugin.capability, .nativeMetal)
-        XCTAssertEqual(plugin.capability.kind, .nativeMetal)
-        XCTAssertFalse(plugin.capability.usesCPU)
-        XCTAssertFalse(plugin.capability.requiresReadback)
-        XCTAssertTrue(plugin.capability.cacheable)
-        XCTAssertTrue(plugin.capability.supportsLowLatencyFrameFlow)
+        XCTAssertEqual(plugin.capability, .unverified)
+        XCTAssertEqual(plugin.capability.kind, .unverified)
+        XCTAssertTrue(plugin.capability.usesCPU)
+        XCTAssertTrue(plugin.capability.requiresReadback)
+        XCTAssertFalse(plugin.capability.cacheable)
+        XCTAssertFalse(plugin.capability.supportsLowLatencyFrameFlow)
     }
 
     func testPluginContextPathReceivesCustomCapability() throws {

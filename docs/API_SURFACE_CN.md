@@ -313,7 +313,7 @@ renderView.display(previewFrame)
 
 规则：
 
-- source-like 插件输出，例如 `texture`、`image`、`cgImage`、`pixelBuffer`、`sampleBuffer`，先回到 `ImageSource`
+- source-like 插件输出，例如 `frame`、`texture`、`image`、`cgImage`、`ciImage`、`pixelBuffer`、`sampleBuffer`，先回到 `ImageSource`
 - editing-like 插件输出，例如 `filters`、`EditRecipe`、`LocalEffectRecipe`、`LayerCompositeRecipe`，继续进入现有 `ImageNode` 路径
 - 插件层不再返回裸 `MaskDescriptor`；局部能力必须直接包装成 `LocalEffectRecipe` 或 `EditRecipe`
 - `applying(mask:, filters:)` 是 `ImageNode` 面向普通调用方的首选局部入口；底层仍统一 lowering 到 `LocalEffectRecipe + editing(...)`
@@ -592,11 +592,32 @@ source contract 一致性说明：
 - `RenderedAnalysisBundle`
 - `RenderedAttachmentAnalysisBundle`
 
+插件通过 `ImageNode.applying(plugin:)` 即时执行：先物化分析帧，再调用输出方法。
+返回的滤镜、编辑配方和局部效果继续作用于原输入；分析所用的 derivative 不会替换原图。
+已经准备好的配方使用 `applying(pluginOutput:)`，无需为接入再渲染一次分析帧。
+
+完整帧结果使用 `.frame(renderedFrame)`，它经 `ImageSource.renderedFrame` 保留 alpha、方向、
+颜色配置、来源层级、metadata 和资源 owner。帧渲染保留租约；`makeTexture()` 的裸纹理交付
+创建独立副本，防止帧释放归池后覆盖结果；逻辑范围与池表面尺寸不同会物化有效区域。
+外部命令编码只接受已物化范围的完整帧。插件返回输入的同一纹理或帧包装时也会自动保留输入帧。
+其他独立裸纹理输出由插件负责 GPU 完成依赖及资源生命周期，不自动推断其像素语义。
+
+插件能力默认 `.unverified`。即时入口在执行前拒绝未声明支持的 `.interactiveLatency`，
+需要读回时用 `.readbackQuality` 准备分析帧，`PluginContext.profile` 仍表达调用方请求档位；
+实际输入档位可从 frame 读取。`cacheable == false` 的结果节点默认 transient，调用方仍可显式覆盖。
+CPU 与融合声明保留在执行报告中，不承诺外部工作已经进入 RenderGraph 的调度和融合。
+
+传入 `report:` 才会调用 `makeDiagnostics(frame:)`，诊断使用同一次输入帧，失败按 throws 传播，
+成功后回传 `PluginExecutionReport`，包含插件标识、能力、输入 token、实际输出类别和诊断。
+插件输出方法必须在返回前完成独立 GPU 写入，或自行保证与后续渲染的 GPU 依赖。
+三个插件子协议是分类标记，不额外约束输出类型，也不改变即时执行合同。
+
 插件支撑层相关类型：
 
 - `PluginOutput`
 - `PluginCapability`
 - `PluginContext`
+- `PluginExecutionReport`
 - `TexturePlugin`
 - `FilterPlugin`
 - `MaskPlugin`
@@ -605,7 +626,7 @@ source contract 一致性说明：
 定位：
 
 - 它们是插件能力、GPU preview host 和 `ImageNode` 之间的桥接支撑层
-- 外部能力统一通过 `Plugin` 接入；Runtime boundary 只是内部调度和诊断实现
+- 外部能力通过 `Plugin` 即时桥接；内部 boundary 只描述边界，实际执行由 `ImageNode` 在建图前完成
 - 最终执行入口仍然是 `HarbethIO` 或 `ImageNode`
 - `RenderRequest`、`RenderTask` 属于 deferred/supporting read surface，不是第三条 app integration route
 - `PreviewDisplaying` 与 `RenderView` 都是 `@MainActor` 合同；显示对象统一回到 `RenderedFrame`，调用方从后台 render completion 接入时必须显式切回主 actor

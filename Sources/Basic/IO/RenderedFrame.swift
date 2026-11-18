@@ -140,6 +140,13 @@ final class RenderedFramePreviewHostPayload: @unchecked Sendable {
     }
 }
 
+/// 保留无独立租约的输入帧宿主资源，只在输出别名输入时持有。
+final class RenderedFrameSourceOwner: @unchecked Sendable {
+    let frame: RenderedFrame
+
+    init(_ frame: RenderedFrame) { self.frame = frame }
+}
+
 /// texture-first 渲染结果的稳定元数据包装。
 public struct RenderedFrame: @unchecked Sendable {
     public let texture: MTLTexture
@@ -167,6 +174,7 @@ public struct RenderedFrame: @unchecked Sendable {
     /// callers can bind texture ownership to a host-managed display lifetime.
     public let lease: TextureLease?
     let previewHostPayload: RenderedFramePreviewHostPayload?
+    let sourceOwner: RenderedFrameSourceOwner?
 
     public init(texture: MTLTexture,
                 colorSpace: CGColorSpace? = nil,
@@ -264,7 +272,8 @@ public struct RenderedFrame: @unchecked Sendable {
          token: FrameRenderToken,
          metadata: [String: String] = [:],
          lease: TextureLease? = nil,
-         previewHostPayload: RenderedFramePreviewHostPayload? = nil) {
+         previewHostPayload: RenderedFramePreviewHostPayload? = nil,
+         sourceOwner: RenderedFrameSourceOwner? = nil) {
         self.texture = texture
         self.size = CGSize(
             width: resolvedOutputSize?.width ?? texture.width,
@@ -303,6 +312,7 @@ public struct RenderedFrame: @unchecked Sendable {
         self.metadata = metadata
         self.lease = lease
         self.previewHostPayload = previewHostPayload
+        self.sourceOwner = sourceOwner
     }
 
     public func isCurrent(comparedTo latestToken: FrameRenderToken) -> Bool {
@@ -1170,5 +1180,87 @@ public extension RenderedFrame {
             alphaType: source.alphaType, profile: profile, token: token, metadata: metadata)
         return alphaType == .nonPremultiplied
             ? try result.converted(to: RenderOutputContract(alpha: .nonPremultiplied)) : result
+    }
+}
+
+extension RenderedFrame {
+    /// 脱离帧租约的裸纹理交付需要独立像素，不能只延长 MTLTexture 的引用。
+    func makeIndependentTexture() throws -> MTLTexture {
+        let context = HarbethContext.shared
+        guard texture.device === context.device,
+              let commandBuffer = context.makeCommandBuffer() else {
+            throw HarbethError.configurationInvalid("帧纹理副本需要同一渲染设备。")
+        }
+        defer { context.recycleCommandBuffer(commandBuffer) }
+        guard texture.textureType == .type2D else {
+            throw HarbethError.configurationInvalid("帧快照需要二维非多重采样纹理。")
+        }
+        let width = resolvedOutputSize.width
+        let height = resolvedOutputSize.height
+        guard width > 0, height > 0, width <= texture.width, height <= texture.height else {
+            throw HarbethError.configurationInvalid("帧的逻辑范围超出纹理。")
+        }
+        let output = try TextureLoader.makeTexture(
+            width: width,
+            height: height,
+            options: [
+                .texturePixelFormat: texture.pixelFormat,
+                .textureUsage: texture.usage,
+                .textureStorageMode: texture.storageMode,
+                .textureMipmapped: texture.mipmapLevelCount > 1,
+                .textureAllowsSizeTolerance: false
+            ],
+            identifier: "RenderedFrame.snapshot"
+        )
+        guard let encoder = commandBuffer.makeBlitCommandEncoder() else { throw HarbethError.makeBlitCommandEncoder }
+        for level in 0..<output.mipmapLevelCount {
+            encoder.copy(
+                from: texture,
+                sourceSlice: 0,
+                sourceLevel: level,
+                sourceOrigin: MTLOrigin(x: 0, y: 0, z: 0),
+                sourceSize: MTLSize(width: max(width >> level, 1), height: max(height >> level, 1), depth: 1),
+                to: output,
+                destinationSlice: 0,
+                destinationLevel: level,
+                destinationOrigin: MTLOrigin(x: 0, y: 0, z: 0)
+            )
+        }
+        encoder.endEncoding()
+        try withExtendedLifetime(self) {
+            try commandBuffer.commitAndWaitUntilCompleted(identifier: "RenderedFrame.snapshot")
+        }
+        return output
+    }
+
+    func retainingSourceFrame(_ source: RenderedFrame, inheritingMetadata: Bool = false) -> RenderedFrame {
+        let aliasesSource = texture === source.texture
+        var mergedMetadata = source.metadata
+        mergedMetadata.merge(metadata) { _, output in output }
+        let toneMappingPolicy = outputToneMappingPolicy == .preserveInput ? source.outputToneMappingPolicy : outputToneMappingPolicy
+        mergedMetadata["outputColorSpace"] = outputColorSpaceContract.name
+        mergedMetadata["outputDynamicRange"] = outputDynamicRange.rawValue
+        mergedMetadata["outputToneMappingPolicy"] = toneMappingPolicy.rawValue
+        return RenderedFrame(
+            texture: texture,
+            colorSpace: colorSpace,
+            outputColorSpaceContract: outputColorSpaceContract,
+            outputToneMappingPolicy: toneMappingPolicy,
+            sourceDescriptor: inheritingMetadata ? ImageSource.renderedFrame(source).descriptor : sourceDescriptor,
+            derivative: derivative,
+            resolvedOutputSize: resolvedOutputSize,
+            renderIntent: renderIntent,
+            sourceTier: inheritingMetadata ? source.sourceTier : sourceTier,
+            alphaType: alphaType,
+            cachePolicy: cachePolicy,
+            semantic: semantic,
+            orientation: inheritingMetadata ? source.orientation : orientation,
+            profile: profile,
+            token: token,
+            metadata: mergedMetadata,
+            lease: lease ?? (aliasesSource ? source.lease : nil),
+            previewHostPayload: previewHostPayload,
+            sourceOwner: aliasesSource ? RenderedFrameSourceOwner(source) : nil
+        )
     }
 }
