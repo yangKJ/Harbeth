@@ -174,9 +174,7 @@ public final class HarbethContext: @unchecked Sendable {
             return cvTextureCacheStorage
         }
         var textureCache: CVMetalTextureCache?
-        #if !targetEnvironment(simulator)
         CVMetalTextureCacheCreate(kCFAllocatorDefault, nil, device, nil, &textureCache)
-        #endif
         cvTextureCacheStorage = textureCache
         return textureCache
     }

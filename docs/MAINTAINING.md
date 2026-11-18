@@ -7,8 +7,8 @@ Harbeth 的维护目标是保持 Apple 多平台 GPU 图像与帧处理核心稳
 构建工具要求 Xcode 26+（Swift 6.2、Apple SDK 26+），CI 固定使用 Xcode 26.3。Swift 语言模式与最低部署系统版本是独立合同：`SWIFT_VERSION=6.0` 不代表支持 Swift 6.0 编译器，使用新 SDK 构建也不要求用户升级到系统 26。
 
 ```bash
-env CLANG_MODULE_CACHE_PATH=.build/ModuleCache xcrun swift build
-env CLANG_MODULE_CACHE_PATH=.build/ModuleCache xcrun swift test
+env CLANG_MODULE_CACHE_PATH=.build/ModuleCache xcrun swift build --build-system xcode
+env CLANG_MODULE_CACHE_PATH=.build/ModuleCache xcrun swift test --build-system xcode
 xcodebuild build \
   -workspace Harbeth.xcworkspace \
   -scheme Harbeth \
@@ -19,6 +19,8 @@ xcodebuild build \
 ```
 
 Swift 代码以现有排版和可读性为先：函数或方法的声明、调用在参数不超过 3 个且单行仍清晰时保持单行；参数超过 3 个默认采用结构化多行，复杂闭包、条件、集合与明显超长表达式也应主动分行。`.swift-format` 只用于本次触及文件的辅助检查，不递归重排全仓。Swift 或 Metal 核心逻辑至少运行 SwiftPM build/test；平台条件、资源打包、公开 API 或 preview surface 改动还应运行对应的 Xcode build。CocoaPods 发布前另行运行 `pod lib lint Harbeth.podspec`。
+
+Metal 与对应 Swift 源码保持同目录，由 Xcode 构建规则自动发现并编译，`Package.swift` 不枚举文件，也不逐文件声明资源。命令行构建与测试显式使用 `--build-system xcode`，确保 Metal 资源处理和 `Bundle.module` 生成；较新工具链默认的 Swift Build 构建器也具备该规则。SwiftPM 的 `native` 构建器不支持 Metal 编译，不能作为此资源链的验证入口。
 
 ## CI 门禁
 

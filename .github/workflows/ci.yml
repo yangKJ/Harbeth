@@ -22,24 +22,24 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Build
-        run: xcrun swift build
+        run: xcrun swift build --build-system xcode
       - name: Test
         shell: bash
         run: |
           if xcrun swift -e 'import Metal; import Darwin; exit(MTLCreateSystemDefaultDevice() == nil ? 1 : 0)'; then
-            xcrun swift test
+            xcrun swift test --build-system xcode
           else
             echo '::warning::No Metal device is available on this runner; compiling and enumerating the complete test inventory instead.'
-            xcrun swift test list > /dev/null
+            xcrun swift test --build-system xcode list > /dev/null
           fi
       - name: Release build and tests
         shell: bash
         run: |
-          xcrun swift build -c release
+          xcrun swift build --build-system xcode -c release
           if xcrun swift -e 'import Metal; import Darwin; exit(MTLCreateSystemDefaultDevice() == nil ? 1 : 0)'; then
-            xcrun swift test -c release
+            xcrun swift test --build-system xcode -c release
           else
-            xcrun swift test -c release list > /dev/null
+            xcrun swift test --build-system xcode -c release list > /dev/null
           fi
       - name: Latest commit whitespace gate
         run: git show --check --format= HEAD
@@ -54,7 +54,7 @@ jobs:
         with:
           fetch-depth: 0
       - name: Compile external public API smoke tests
-        run: xcrun swift test list > /dev/null
+        run: xcrun swift test --build-system xcode list > /dev/null
       - name: Compare against 3.0 baseline when available
         shell: bash
         run: |
