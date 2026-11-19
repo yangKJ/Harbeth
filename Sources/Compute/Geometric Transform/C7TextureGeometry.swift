@@ -33,9 +33,11 @@ public struct C7TextureGeometry: C7FilterProtocol {
             return finite && positive && rect.maxX <= 1 && rect.maxY <= 1
         }
         guard (1...16384).contains(width), (1...16384).contains(height),
-              valid(sourceRect), valid(destinationRect), (0..<4).allSatisfy({ background[$0].isFinite }),
-              [sampleTransform.a, sampleTransform.b, sampleTransform.c, sampleTransform.d,
-               sampleTransform.tx, sampleTransform.ty].allSatisfy({ $0.isFinite && Float($0).isFinite }) else {
+              valid(sourceRect), valid(destinationRect),
+              (0..<4).allSatisfy({ background[$0].isFinite }),
+              [sampleTransform.a, sampleTransform.b, sampleTransform.c, sampleTransform.d, sampleTransform.tx, sampleTransform.ty].allSatisfy({
+                  $0.isFinite && Float($0).isFinite
+              }) else {
             throw HarbethError.configurationInvalid("无效的纹理采样几何。")
         }
         self.width = width
@@ -53,15 +55,18 @@ public struct C7TextureGeometry: C7FilterProtocol {
     public var kernelOutputContract: RenderOutputContract { .premultipliedColorOutput }
     public var samplingFootprint: SamplingFootprint { .global }
     public var kernelPixelContract: KernelPixelContract {
-        .init(inputAlphaExpectation: .premultiplied, outputAlpha: .premultiplied,
-              precision: .float32, dynamicRangeBehavior: .preservesExtendedRange,
-              samplingFootprint: .global, coordinateDependency: .fullImage, globalDependency: .imageDimensions)
+        .init(
+            inputAlphaExpectation: .premultiplied, outputAlpha: .premultiplied,
+            precision: .float32, dynamicRangeBehavior: .preservesExtendedRange,
+            samplingFootprint: .global, coordinateDependency: .fullImage,
+            globalDependency: .imageDimensions
+        )
     }
     public func resize(input size: C7Size) -> C7Size { C7Size(width: width, height: height) }
     public var kernelParameterBindings: [KernelParameterBinding] {
         [
-            .init(name: "sourceRect", index: 0, stage: .compute, value: .float4(vector(sourceRect))),
-            .init(name: "destinationRect", index: 1, stage: .compute, value: .float4(vector(destinationRect))),
+            .init(name: "sourceRect", index: 0, stage: .compute, value: .float4(sourceRect.c7.toSIMD4())),
+            .init(name: "destinationRect", index: 1, stage: .compute, value: .float4(destinationRect.c7.toSIMD4())),
             .init(name: "flips", index: 2, stage: .compute, value: .float2(SIMD2(mirrorsHorizontally ? 1 : 0, flipsVertically ? 1 : 0))),
             .init(name: "background", index: 3, stage: .compute, value: .float4(background)),
             .init(name: "sampleRowX", index: 4, stage: .compute,
@@ -69,8 +74,5 @@ public struct C7TextureGeometry: C7FilterProtocol {
             .init(name: "sampleRowY", index: 5, stage: .compute,
                 value: .float4(SIMD4(Float(sampleTransform.b), Float(sampleTransform.d), Float(sampleTransform.ty), 0)))
         ]
-    }
-    private func vector(_ rect: CGRect) -> SIMD4<Float> {
-        SIMD4(Float(rect.minX), Float(rect.minY), Float(rect.width), Float(rect.height))
     }
 }

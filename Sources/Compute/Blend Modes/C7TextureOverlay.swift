@@ -29,9 +29,6 @@ public struct C7TextureOverlay: C7FilterProtocol {
     public var memoryAccessPattern: MemoryAccessPattern { .dualTexture }
     public var otherInputTextures: C7InputTextures { [texture] }
     public var kernelParameterBindings: [KernelParameterBinding] {
-        [.init(name: "rect", index: 0, stage: .compute, value: .float4(vector(rect)))]
-    }
-    private func vector(_ rect: CGRect) -> SIMD4<Float> {
-        SIMD4(Float(rect.minX), Float(rect.minY), Float(rect.width), Float(rect.height))
+        [.init(name: "rect", index: 0, stage: .compute, value: .float4(rect.c7.toSIMD4()))]
     }
 }

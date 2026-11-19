@@ -42,7 +42,11 @@ struct PipelineLeafFilter: C7FilterProtocol {
     let kernelParameterBindings: [KernelParameterBinding]
     let computeKernelLibrarySource: KernelLibrarySource
 
-    init(modifier: ModifierEnum, factors: [Float] = [], otherInputTextures: C7InputTextures = [], kernelParameterBindings: [KernelParameterBinding] = [], librarySource: KernelLibrarySource = .automatic) {
+    init(modifier: ModifierEnum,
+         factors: [Float] = [],
+         otherInputTextures: C7InputTextures = [],
+         kernelParameterBindings: [KernelParameterBinding] = [],
+         librarySource: KernelLibrarySource = .automatic) {
         self.modifier = modifier
         self.factors = factors
         self.otherInputTextures = otherInputTextures

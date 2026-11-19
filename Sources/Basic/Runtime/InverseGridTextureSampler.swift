@@ -63,11 +63,11 @@ public enum InverseGridTextureSampler {
             var clipsGridBounds: UInt32
         }
         var uniforms = Uniforms(
-            sourceRegion: SIMD4(Float(sourceRegion.minX), Float(sourceRegion.minY), Float(sourceRegion.width), Float(sourceRegion.height)),
-            sourceExtent: SIMD4(Float(sourceExtent.minX), Float(sourceExtent.minY), Float(sourceExtent.width), Float(sourceExtent.height)),
-            outputRegion: SIMD4(Float(outputRegion.minX), Float(outputRegion.minY), Float(outputRegion.width), Float(outputRegion.height)),
+            sourceRegion: sourceRegion.c7.toSIMD4(),
+            sourceExtent: sourceExtent.c7.toSIMD4(),
+            outputRegion: outputRegion.c7.toSIMD4(),
             outputSize: SIMD2(Float(outputSize.width), Float(outputSize.height)),
-            outputExtent: SIMD4(Float((outputExtent ?? sourceExtent).minX), Float((outputExtent ?? sourceExtent).minY), Float((outputExtent ?? sourceExtent).width), Float((outputExtent ?? sourceExtent).height)),
+            outputExtent: resolvedOutputExtent.c7.toSIMD4(),
             row0: SIMD4(outputToField[0][0], outputToField[1][0], outputToField[2][0], 0),
             row1: SIMD4(outputToField[0][1], outputToField[1][1], outputToField[2][1], 0),
             row2: SIMD4(outputToField[0][2], outputToField[1][2], outputToField[2][2], 0),

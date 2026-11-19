@@ -53,7 +53,10 @@ public struct TextureAnalysisValueRange: Sendable, Codable, Equatable, Hashable 
     private enum CodingKeys: String, CodingKey { case minimum, maximum }
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        self.init(minimum: try container.decode(Float.self, forKey: .minimum), maximum: try container.decode(Float.self, forKey: .maximum))
+        self.init(
+            minimum: try container.decode(Float.self, forKey: .minimum),
+            maximum: try container.decode(Float.self, forKey: .maximum)
+        )
     }
 
     public static let normalized = TextureAnalysisValueRange(minimum: 0, maximum: 1)

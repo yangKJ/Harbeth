@@ -111,8 +111,7 @@ public struct RenderedAttachmentAnalysisBundleSummary: Sendable, Codable, Equata
         ].joined(separator: "|")
     }
 
-    public func jsonData(prettyPrinted: Bool = false,
-                         sortedKeys: Bool = true) throws -> Data {
+    public func jsonData(prettyPrinted: Bool = false, sortedKeys: Bool = true) throws -> Data {
         let encoder = JSONEncoder()
         if prettyPrinted {
             encoder.outputFormatting.insert(.prettyPrinted)
@@ -123,8 +122,7 @@ public struct RenderedAttachmentAnalysisBundleSummary: Sendable, Codable, Equata
         return try encoder.encode(self)
     }
 
-    public func jsonString(prettyPrinted: Bool = false,
-                           sortedKeys: Bool = true) throws -> String {
+    public func jsonString(prettyPrinted: Bool = false, sortedKeys: Bool = true) throws -> String {
         let data = try jsonData(prettyPrinted: prettyPrinted, sortedKeys: sortedKeys)
         guard let string = String(data: data, encoding: .utf8) else {
             throw HarbethError.configurationInvalid("RenderedAttachmentAnalysisBundleSummary JSON encoding is not valid UTF-8.")
@@ -248,13 +246,11 @@ public struct RenderedAttachmentAnalysisBundle: @unchecked Sendable {
         )
     }
 
-    public func jsonData(prettyPrinted: Bool = false,
-                         sortedKeys: Bool = true) throws -> Data {
+    public func jsonData(prettyPrinted: Bool = false, sortedKeys: Bool = true) throws -> Data {
         try summary.jsonData(prettyPrinted: prettyPrinted, sortedKeys: sortedKeys)
     }
 
-    public func jsonString(prettyPrinted: Bool = false,
-                           sortedKeys: Bool = true) throws -> String {
+    public func jsonString(prettyPrinted: Bool = false, sortedKeys: Bool = true) throws -> String {
         try summary.jsonString(prettyPrinted: prettyPrinted, sortedKeys: sortedKeys)
     }
 }
@@ -294,10 +290,17 @@ extension RenderedAttachmentSet {
                       preferredMethod: TextureHistogramComputationMethod = .gpuMPS) -> RenderedAttachmentAnalysis? {
         guard let attachment = attachment(for: semantic) else { return nil }
         let resolvedChannel = channel ?? attachment.defaultHistogramChannel
-        let analysisScope = TextureAnalysisScope(region: region, mask: mask, luminanceRange: luminanceRange,
-            colorRange: colorRange, coverageThreshold: coverageThreshold, valueRange: valueRange)
-        let artifacts = TextureAnalysisArtifacts.make(texture: attachment.texture, channel: resolvedChannel,
-            bins: bins, height: histogramHeight, scope: analysisScope, preferredMethod: preferredMethod)
+        let analysisScope = TextureAnalysisScope(
+            region: region, mask: mask,
+            luminanceRange: luminanceRange,
+            colorRange: colorRange,
+            coverageThreshold: coverageThreshold, valueRange: valueRange
+        )
+        let artifacts = TextureAnalysisArtifacts.make(
+            texture: attachment.texture, channel: resolvedChannel,
+            bins: bins, height: histogramHeight,
+            scope: analysisScope, preferredMethod: preferredMethod
+        )
         let statistics = artifacts.statistics
         let colorProbe = attachment.texture.c7.resolvedHistogramRegion(region).flatMap { resolvedRegion in
             statistics.map { TextureColorProbe(region: resolvedRegion, statistics: $0) }
@@ -383,20 +386,18 @@ public extension RenderProtocol {
                                         coverageThreshold: Float = 0.5,
                                         valueRange: TextureAnalysisValueRange = .normalized,
                                         preferredMethod: TextureHistogramComputationMethod = .gpuMPS) throws -> RenderedAttachmentAnalysisBundle {
-        try renderAttachmentSet(
-            from: sourceTexture,
-            identifier: identifier
-        ).makeAnalysisBundle(
-            bins: bins,
-            histogramHeight: histogramHeight,
-            region: region,
-            mask: mask,
-            luminanceRange: luminanceRange,
-            colorRange: colorRange,
-            coverageThreshold: coverageThreshold,
-            valueRange: valueRange,
-            preferredMethod: preferredMethod
-        )
+        try renderAttachmentSet(from: sourceTexture, identifier: identifier)
+            .makeAnalysisBundle(
+                bins: bins,
+                histogramHeight: histogramHeight,
+                region: region,
+                mask: mask,
+                luminanceRange: luminanceRange,
+                colorRange: colorRange,
+                coverageThreshold: coverageThreshold,
+                valueRange: valueRange,
+                preferredMethod: preferredMethod
+            )
     }
 
     func renderAttachmentAnalysisBundle(from sourceTexture: MTLTexture,

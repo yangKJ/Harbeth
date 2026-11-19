@@ -149,14 +149,13 @@ public extension MTLTextureCompatible_ {
                         luminanceRange: TextureLuminanceRange? = nil,
                         colorRange: TextureColorRange? = nil,
                         coverageThreshold: Float = 0.5) -> TextureColorProbe? {
-        guard let resolvedRegion = resolvedHistogramRegion(region),
-              let statistics = makeStatistics(
-                region: resolvedRegion,
-                mask: mask,
-                luminanceRange: luminanceRange,
-                colorRange: colorRange,
-                coverageThreshold: coverageThreshold
-              ) else {
+        guard let resolvedRegion = resolvedHistogramRegion(region), let statistics = makeStatistics(
+            region: resolvedRegion,
+            mask: mask,
+            luminanceRange: luminanceRange,
+            colorRange: colorRange,
+            coverageThreshold: coverageThreshold
+        ) else {
             return nil
         }
         return TextureColorProbe(region: resolvedRegion, statistics: statistics)

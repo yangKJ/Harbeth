@@ -8,6 +8,12 @@ Harbeth 的公开变更按时间倒序记录，格式遵循 [Keep a Changelog](h
 
 > Target: Harbeth 3.0.0. This is a breaking upgrade from 2.x; read the [3.0 migration guide](docs/MIGRATION_3_CN.md) before adopting it.
 
+### 2026-11-19
+
+#### Fixed
+
+- 加权颜色直方图使用完整线程组汇总，修复不支持非均匀派发的 Metal 设备在统计时可能触发的 API 校验崩溃。
+
 ### 2026-11-18
 
 #### Added

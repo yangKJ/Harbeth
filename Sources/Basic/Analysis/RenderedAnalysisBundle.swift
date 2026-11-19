@@ -58,11 +58,6 @@ public struct RenderedAnalysisBundle: @unchecked Sendable {
 }
 
 extension RenderedAnalysisBundle {
-    /// 区域维度 analysis bundle 工厂：用于 `RenderRequest.renderAnalysisBundle(channel:bins:histogramHeight:region:preferredMethod:)` 闭包。
-    ///
-    /// 行为契约（与原 ImageNode / EditRecipe / LayerCompositeRecipe 内联实现一致）：
-    /// - `analysisScopeFingerprint` 用 `TextureAnalysisScope(region: region).fingerprint` 包装
-    /// - `histogram` 优先用 `histogramAttachment?.histogram`，否则用 `frame.makeHistogram(region:)`
     static func makeRegionBundle(
         frame: RenderedFrame,
         channel: TextureHistogramChannel,
@@ -83,11 +78,6 @@ extension RenderedAnalysisBundle {
         )
     }
 
-    /// 作用域维度 analysis bundle 工厂：用于 `RenderRequest.renderAnalysisBundle(channel:bins:histogramHeight:scope:preferredMethod:)` 闭包。
-    ///
-    /// 行为契约（与原 ImageNode / EditRecipe / LayerCompositeRecipe 内联实现一致）：
-    /// - `analysisScopeFingerprint` 直接用 `scope.fingerprint`
-    /// - `histogram` 优先用 `histogramAttachment?.histogram`，否则用 `frame.makeHistogram(scope:)`
     static func makeScopeBundle(
         frame: RenderedFrame,
         channel: TextureHistogramChannel,
@@ -117,8 +107,11 @@ extension RenderedAnalysisBundle {
         preferredMethod: TextureHistogramComputationMethod,
         attachmentDebugPolicies: [RenderOutputAttachmentDebugPolicy]
     ) -> RenderedAnalysisBundle {
-        let artifacts = TextureAnalysisArtifacts.make(texture: frame.texture, channel: channel, bins: bins,
-            height: histogramHeight, scope: scope, preferredMethod: preferredMethod)
+        let artifacts = TextureAnalysisArtifacts.make(
+            texture: frame.texture, channel: channel, bins: bins,
+            height: histogramHeight, scope: scope,
+            preferredMethod: preferredMethod
+        )
         let statistics = artifacts.statistics
         let colorProbe = frame.texture.c7.resolvedHistogramRegion(scope.region).flatMap { region in
             statistics.map { TextureColorProbe(region: region, statistics: $0) }
@@ -147,15 +140,28 @@ extension TextureAnalysisArtifacts {
         let readback = TextureAnalysisReadback(texture: texture, region: scope.region)
         let mask = readback == nil ? nil : compatible.makeMaskCoverageSample(for: scope.mask)
         let statistics = gpu?.statistics ?? readback.flatMap {
-            compatible.makeStatistics(readback: $0, region: scope.region, maskSample: mask,
-                luminanceRange: scope.luminanceRange, colorRange: scope.colorRange, coverageThreshold: scope.coverageThreshold)
+            compatible.makeStatistics(
+                readback: $0, region: scope.region,
+                maskSample: mask,
+                luminanceRange: scope.luminanceRange,
+                colorRange: scope.colorRange,
+                coverageThreshold: scope.coverageThreshold
+            )
         } ?? (empty ? compatible.makeStatistics(scope: scope) : nil)
         let histogram = gpu?.histogram ?? readback.flatMap {
-            compatible.makeCPUHistogram(readback: $0, maskSample: mask, channel: channel, bins: bins,
-                region: scope.region, luminanceRange: scope.luminanceRange, colorRange: scope.colorRange,
-                coverageThreshold: scope.coverageThreshold, valueRange: scope.valueRange)
+            compatible.makeCPUHistogram(
+                readback: $0, maskSample: mask,
+                channel: channel, bins: bins,
+                region: scope.region,
+                luminanceRange: scope.luminanceRange,
+                colorRange: scope.colorRange,
+                coverageThreshold: scope.coverageThreshold,
+                valueRange: scope.valueRange
+            )
         } ?? (empty ? compatible.makeHistogram(channel: channel, bins: bins, scope: scope, preferredMethod: .cpuReadback) : nil)
-        let preview = gpu?.histogramAttachment ?? histogram.flatMap { compatible.makeHistogramAttachment(from: $0, height: height) }
+        let preview = gpu?.histogramAttachment ?? histogram.flatMap {
+            compatible.makeHistogramAttachment(from: $0, height: height)
+        }
         return Self(statistics: statistics, histogram: histogram, histogramAttachment: preview)
     }
 }

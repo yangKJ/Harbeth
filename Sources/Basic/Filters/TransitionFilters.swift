@@ -28,9 +28,11 @@ public extension TransitionKernel {
 protocol BuiltinTransitionKernel: TransitionKernel {}
 extension BuiltinTransitionKernel {
     var kernelPixelContract: KernelPixelContract {
-        .init(inputAlphaExpectation: .premultiplied, outputAlpha: .premultiplied,
-              samplingFootprint: .dynamic, coordinateDependency: .transformed,
-              globalDependency: .imageDimensions, fusionPolicy: .disabled)
+        .init(
+            inputAlphaExpectation: .premultiplied, outputAlpha: .premultiplied,
+            samplingFootprint: .dynamic, coordinateDependency: .transformed,
+            globalDependency: .imageDimensions, fusionPolicy: .disabled
+        )
     }
     var kernelOutputContract: RenderOutputContract { .premultipliedColorOutput }
 }
@@ -66,8 +68,11 @@ struct DirectionalWipeTransition: BuiltinTransitionKernel {
     var modifier: ModifierEnum { .compute(kernel: "InnerDirectionalWipeTransition") }
     var factors: [Float] {
         let angle = angleDegrees.isFinite ? angleDegrees.truncatingRemainder(dividingBy: 360) : 0
-        return [sanitizedTransitionFloat(progress, fallback: 0, range: 0...1), Degree(value: angle).radians,
-                sanitizedTransitionFloat(softness, fallback: 0.02, range: 0.0001...(Float.greatestFiniteMagnitude / 4))]
+        return [
+            sanitizedTransitionFloat(progress, fallback: 0, range: 0...1),
+            Degree(value: angle).radians,
+            sanitizedTransitionFloat(softness, fallback: 0.02, range: 0.0001...(Float.greatestFiniteMagnitude / 4))
+        ]
     }
 }
 
@@ -86,7 +91,12 @@ struct LumaWipeTransition: BuiltinTransitionKernel {
     }
 
     var modifier: ModifierEnum { .compute(kernel: "InnerLumaWipeTransition") }
-    var factors: [Float] { [sanitizedTransitionFloat(progress, fallback: 0, range: 0...1), sanitizedTransitionFloat(softness, fallback: 0.1, range: 0.0001...(Float.greatestFiniteMagnitude / 4))] }
+    var factors: [Float] {
+        [
+            sanitizedTransitionFloat(progress, fallback: 0, range: 0...1),
+            sanitizedTransitionFloat(softness, fallback: 0.1, range: 0.0001...(Float.greatestFiniteMagnitude / 4))
+        ]
+    }
 }
 
 struct DisplacementTransition: BuiltinTransitionKernel {
@@ -104,7 +114,12 @@ struct DisplacementTransition: BuiltinTransitionKernel {
     }
 
     var modifier: ModifierEnum { .compute(kernel: "InnerDisplacementTransition") }
-    var factors: [Float] { [sanitizedTransitionFloat(progress, fallback: 0, range: 0...1), (scale.isFinite ? scale : 0.05)] }
+    var factors: [Float] {
+        [
+            sanitizedTransitionFloat(progress, fallback: 0, range: 0...1),
+            (scale.isFinite ? scale : 0.05)
+        ]
+    }
 }
 
 struct PageCurlTransition: BuiltinTransitionKernel {
@@ -140,10 +155,13 @@ struct PageCurlTransition: BuiltinTransitionKernel {
     var factors: [Float] {
         let angle = angleDegrees.isFinite ? angleDegrees.truncatingRemainder(dividingBy: 360) : 0
         let radians = Degree(value: angle).radians
-        return [Self.sanitized(progress, fallback: 0, range: 0...1), cos(radians), sin(radians),
-                Self.sanitized(radius, fallback: 0.22, range: 0.001...0.5),
-                Self.sanitized(shadowStrength, fallback: 0.7, range: 0...1),
-                Self.sanitized(shadowRadius, fallback: 0.06, range: 0.001...0.5)]
+        return [
+            Self.sanitized(progress, fallback: 0, range: 0...1),
+            cos(radians), sin(radians),
+            Self.sanitized(radius, fallback: 0.22, range: 0.001...0.5),
+            Self.sanitized(shadowStrength, fallback: 0.7, range: 0...1),
+            Self.sanitized(shadowRadius, fallback: 0.06, range: 0.001...0.5)
+        ]
     }
 
     var kernelPixelContract: KernelPixelContract {

@@ -21,15 +21,15 @@ public struct LayerComposite: C7FilterProtocol {
     let tintColor: SIMD4<Float>?
 
     public init(layerTexture: MTLTexture,
-         mask: MaskDescriptor? = nil,
-         compositingMask: MaskDescriptor? = nil,
-         normalizedFrame: CGRect = CGRect(x: 0, y: 0, width: 1, height: 1),
-         contentRegion: CGRect = CGRect(x: 0, y: 0, width: 1, height: 1),
-         opacity: Float = 1,
-         blendMode: LayerBlendMode = .sourceOver,
-         cornerRadius: Float = 0,
-         cornerCurve: LayerCornerCurve = .circular,
-         tintColor: SIMD4<Float>? = nil) {
+                mask: MaskDescriptor? = nil,
+                compositingMask: MaskDescriptor? = nil,
+                normalizedFrame: CGRect = CGRect(x: 0, y: 0, width: 1, height: 1),
+                contentRegion: CGRect = CGRect(x: 0, y: 0, width: 1, height: 1),
+                opacity: Float = 1,
+                blendMode: LayerBlendMode = .sourceOver,
+                cornerRadius: Float = 0,
+                cornerCurve: LayerCornerCurve = .circular,
+                tintColor: SIMD4<Float>? = nil) {
         self.layerTexture = layerTexture
         self.mask = mask
         self.compositingMask = compositingMask

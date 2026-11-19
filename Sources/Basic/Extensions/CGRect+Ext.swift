@@ -5,11 +5,16 @@
 //  Created by Condy on 2023/8/8.
 //
 
+import CoreGraphics
 import Foundation
 
 extension CGRect: HarbethCompatible { }
 
 extension HarbethWrapper where Base == CGRect {
+    
+    public func toSIMD4() -> SIMD4<Float> {
+        SIMD4(Float(base.minX), Float(base.minY), Float(base.width), Float(base.height))
+    }
     
     public func radius(_ value: Float, max: Float) -> Float {
         let base = Float(sqrt(pow(base.width, 2) + pow(base.height, 2)))

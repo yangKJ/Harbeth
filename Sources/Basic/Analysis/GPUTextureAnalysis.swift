@@ -41,7 +41,9 @@ enum GPUTextureAnalysis {
             : ([.rg8Unorm, .rg16Float, .rg32Float].contains(texture.pixelFormat) ? 2 : (texture.pixelFormat == .a8Unorm ? 3 : 0))
         var lease: TextureLease?
         if let mask = scope.mask {
-            guard mask.texture.device === texture.device else { throw HarbethError.configurationInvalid("Analysis mask device mismatch.") }
+            guard mask.texture.device === texture.device else {
+                throw HarbethError.configurationInvalid("Analysis mask device mismatch.")
+            }
             let normalized = try TextureLoader.makeTextureLease(
                 width: mask.texture.width, height: mask.texture.height,
                 options: [
@@ -51,7 +53,8 @@ enum GPUTextureAnalysis {
                 identifier: "AnalysisMask"
             )
             do {
-                _ = try MaskCoverageExtract(mask: mask).applyAtTexture(form: mask.texture, to: normalized.texture, for: command)
+                _ = try MaskCoverageExtract(mask: mask)
+                    .applyAtTexture(form: mask.texture, to: normalized.texture, for: command)
             } catch {
                 normalized.release()
                 throw error
@@ -255,7 +258,10 @@ enum GPUTextureAnalysis {
         guard let peak = command.makeComputeCommandEncoder() else { throw HarbethError.commandBuffer }
         peak.setComputePipelineState(peakPipeline)
         peak.setBuffer(histogram, offset: 0, index: 0); peak.setBuffer(params, offset: 0, index: 1)
-        peak.dispatchThreadgroups(MTLSize(width: 1, height: 1, depth: 1), threadsPerThreadgroup: MTLSize(width: 256, height: 1, depth: 1))
+        peak.dispatchThreadgroups(
+            MTLSize(width: 1, height: 1, depth: 1),
+            threadsPerThreadgroup: MTLSize(width: 256, height: 1, depth: 1)
+        )
         peak.endEncoding()
         let pipeline = try Compute.makeComputePipelineState(with: "histogramPreviewKernel")
         guard let encoder = command.makeComputeCommandEncoder() else { throw HarbethError.commandBuffer }
@@ -270,7 +276,10 @@ enum GPUTextureAnalysis {
         encoder.setComputePipelineState(pipeline); encoder.setTexture(output, index: 0)
         encoder.setBuffer(histogram, offset: 0, index: 0); encoder.setBuffer(params, offset: 0, index: 1)
         encoder.setBytes(&color, length: MemoryLayout<SIMD4<Float>>.stride, index: 2)
-        encoder.dispatchThreads(MTLSize(width: bins, height: height, depth: 1), threadsPerThreadgroup: MTLSize(width: 8, height: 8, depth: 1))
+        encoder.dispatchThreads(
+            MTLSize(width: bins, height: height, depth: 1),
+            threadsPerThreadgroup: MTLSize(width: 8, height: 8, depth: 1)
+        )
         encoder.endEncoding()
         return output
     }
@@ -317,7 +326,9 @@ enum GPUTextureAnalysis {
         let pipeline = try Compute.makeComputePipelineState(with: "AnalysisScopeMask")
         var p = prepared.parameters
         encoder.setComputePipelineState(pipeline)
-        encoder.setTexture(texture, index: 0); encoder.setTexture(prepared.mask ?? texture, index: 1); encoder.setTexture(output, index: 2)
+        encoder.setTexture(texture, index: 0)
+        encoder.setTexture(prepared.mask ?? texture, index: 1)
+        encoder.setTexture(output, index: 2)
         encoder.setBytes(&p, length: p.count * 4, index: 1)
         encoder.dispatchThreads(
             MTLSize(width: texture.width, height: texture.height, depth: 1),

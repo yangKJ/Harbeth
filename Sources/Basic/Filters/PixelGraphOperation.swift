@@ -11,7 +11,10 @@ import simd
 
 /// Numeric RGBA operations. Inputs and outputs use the same premultiplied representation.
 public struct PixelGraphOperation: C7FilterProtocol {
-    public enum Operation: Int { case matrix, clamp, maskRed, maskAlpha, multiply, unpremultiply, opaque, interpolate, preserveAlpha, constant, multiplyCoverage }
+    public enum Operation: Int {
+        case matrix, clamp, maskRed, maskAlpha, multiply, unpremultiply
+        case opaque, interpolate, preserveAlpha, constant, multiplyCoverage
+    }
     public let operation: Operation
     public let background: MTLTexture
     public let mask: MTLTexture
@@ -19,8 +22,12 @@ public struct PixelGraphOperation: C7FilterProtocol {
     public let bias: SIMD4<Float>
     public let maximum: SIMD4<Float>
 
-    public init(_ operation: Operation, background: MTLTexture, mask: MTLTexture? = nil,
-                rows: [SIMD4<Float>] = [], bias: SIMD4<Float> = .zero, maximum: SIMD4<Float> = .one) {
+    public init(_ operation: Operation,
+                background: MTLTexture,
+                mask: MTLTexture? = nil,
+                rows: [SIMD4<Float>] = [],
+                bias: SIMD4<Float> = .zero,
+                maximum: SIMD4<Float> = .one) {
         self.operation = operation
         self.background = background
         self.mask = mask ?? background
@@ -39,10 +46,14 @@ public struct PixelGraphOperation: C7FilterProtocol {
     public var otherInputTextures: C7InputTextures { [background, mask] }
     public var memoryAccessPattern: MemoryAccessPattern { .multiTexture }
     public var kernelParameterBindings: [KernelParameterBinding] {
-        [KernelParameterBinding(name: "operation", index: 0, stage: .compute, value: .int(operation.rawValue))]
-        + rows.enumerated().map { KernelParameterBinding(name: "row\($0.offset)", index: $0.offset + 1, stage: .compute, value: .float4($0.element)) }
-        + [KernelParameterBinding(name: "bias", index: 5, stage: .compute, value: .float4(bias)),
-           KernelParameterBinding(name: "maximum", index: 6, stage: .compute, value: .float4(maximum))]
+        [
+            KernelParameterBinding(name: "operation", index: 0, stage: .compute, value: .int(operation.rawValue))
+        ] + rows.enumerated().map {
+            KernelParameterBinding(name: "row\($0.offset)", index: $0.offset + 1, stage: .compute, value: .float4($0.element))
+        } + [
+            KernelParameterBinding(name: "bias", index: 5, stage: .compute, value: .float4(bias)),
+            KernelParameterBinding(name: "maximum", index: 6, stage: .compute, value: .float4(maximum))
+        ]
     }
 }
 
@@ -56,7 +67,12 @@ public struct ImageRegionTransform: C7FilterProtocol, GeometryParameterValidatin
     public let outputSize: CGSize?
     public let interpolation: Interpolation
 
-    public init(sourceRegion: CGRect, outputRegion: CGRect, inverse: simd_float3x3, edgeClamped: Bool = false, outputSize: CGSize? = nil, interpolation: Interpolation = .linear) {
+    public init(sourceRegion: CGRect,
+                outputRegion: CGRect,
+                inverse: simd_float3x3,
+                edgeClamped: Bool = false,
+                outputSize: CGSize? = nil,
+                interpolation: Interpolation = .linear) {
         self.sourceRegion = sourceRegion
         self.outputRegion = outputRegion
         self.inverse = inverse
@@ -65,8 +81,10 @@ public struct ImageRegionTransform: C7FilterProtocol, GeometryParameterValidatin
         self.interpolation = interpolation
     }
     func validateGeometryParameters() throws {
-        let values = [sourceRegion.minX, sourceRegion.minY, sourceRegion.width, sourceRegion.height,
-                      outputRegion.minX, outputRegion.minY, outputRegion.width, outputRegion.height]
+        let values = [
+            sourceRegion.minX, sourceRegion.minY, sourceRegion.width, sourceRegion.height,
+            outputRegion.minX, outputRegion.minY, outputRegion.width, outputRegion.height
+        ]
         guard values.allSatisfy({ $0.isFinite && abs($0) < 1e7 }),
               sourceRegion.width > 0, sourceRegion.height > 0, outputRegion.width > 0, outputRegion.height > 0,
               (0..<3).allSatisfy({ inverse[$0].x.isFinite && inverse[$0].y.isFinite && inverse[$0].z.isFinite }) else {
@@ -84,12 +102,18 @@ public struct ImageRegionTransform: C7FilterProtocol, GeometryParameterValidatin
         guard let outputSize, (try? validateGeometryParameters()) != nil else { return size }
         return C7Size(width: Int(outputSize.width), height: Int(outputSize.height))
     }
-    public var modifier: ModifierEnum { .compute(kernel: interpolation == .lanczos ? "ImageRegionLanczosTransform" : "ImageRegionTransform") }
+    public var modifier: ModifierEnum {
+        .compute(kernel: interpolation == .lanczos ? "ImageRegionLanczosTransform" : "ImageRegionTransform")
+    }
     public var kernelParameterBindings: [KernelParameterBinding] {
         let rows = (0..<3).map { SIMD4<Float>(inverse[0][$0], inverse[1][$0], inverse[2][$0], 0) }
-        return [KernelParameterBinding(name: "sourceRegion", index: 0, stage: .compute, value: .float4(SIMD4(Float(sourceRegion.minX), Float(sourceRegion.minY), Float(sourceRegion.width), Float(sourceRegion.height)))),
-                KernelParameterBinding(name: "outputRegion", index: 1, stage: .compute, value: .float4(SIMD4(Float(outputRegion.minX), Float(outputRegion.minY), Float(outputRegion.width), Float(outputRegion.height))))]
-            + rows.enumerated().map { KernelParameterBinding(name: "row\($0.offset)", index: $0.offset + 2, stage: .compute, value: .float4($0.element)) }
-            + [KernelParameterBinding(name: "clamped", index: 5, stage: .compute, value: .bool(edgeClamped))]
+        return [
+            KernelParameterBinding(name: "sourceRegion", index: 0, stage: .compute, value: .float4(sourceRegion.c7.toSIMD4())),
+            KernelParameterBinding(name: "outputRegion", index: 1, stage: .compute, value: .float4(outputRegion.c7.toSIMD4()))
+        ] + rows.enumerated().map {
+            KernelParameterBinding(name: "row\($0.offset)", index: $0.offset + 2, stage: .compute, value: .float4($0.element))
+        } + [
+            KernelParameterBinding(name: "clamped", index: 5, stage: .compute, value: .bool(edgeClamped))
+        ]
     }
 }

@@ -115,8 +115,7 @@ public struct RenderedHistogramAttachment: @unchecked Sendable {
     public let histogram: TextureHistogram
     public let attachment: RenderedAttachment
 
-    init(histogram: TextureHistogram,
-         attachment: RenderedAttachment) {
+    init(histogram: TextureHistogram, attachment: RenderedAttachment) {
         self.histogram = histogram
         self.attachment = attachment
     }
@@ -153,10 +152,15 @@ public extension MTLTextureCompatible_ {
                        coverageThreshold: Float = 0.5,
                        valueRange: TextureAnalysisValueRange = .normalized,
                        preferredMethod: TextureHistogramComputationMethod = .cpuReadback) -> TextureHistogram? {
-        if preferredMethod == .gpuMPS,
-           let histogram = GPUTextureAnalysis.histogram(target, channel: channel, bins: max(1, bins),
-                scope: TextureAnalysisScope(region: region, mask: mask, luminanceRange: luminanceRange,
-                    colorRange: colorRange, coverageThreshold: coverageThreshold, valueRange: valueRange)) {
+        if preferredMethod == .gpuMPS, let histogram = GPUTextureAnalysis.histogram(
+            target, channel: channel, bins: max(1, bins),
+            scope: TextureAnalysisScope(
+                region: region, mask: mask,
+                luminanceRange: luminanceRange,
+                colorRange: colorRange,
+                coverageThreshold: coverageThreshold, valueRange: valueRange
+            )
+        ) {
             return histogram
         }
         if mask != nil || luminanceRange != nil || colorRange != nil {
@@ -214,10 +218,16 @@ public extension MTLTextureCompatible_ {
                                    coverageThreshold: Float = 0.5,
                                    valueRange: TextureAnalysisValueRange = .normalized,
                                    preferredMethod: TextureHistogramComputationMethod = .gpuMPS) -> RenderedHistogramAttachment? {
-        if preferredMethod == .gpuMPS,
-           let attachment = GPUTextureAnalysis.histogramAttachment(target, channel: channel, bins: max(1, bins), height: height,
-                scope: TextureAnalysisScope(region: region, mask: mask, luminanceRange: luminanceRange,
-                    colorRange: colorRange, coverageThreshold: coverageThreshold, valueRange: valueRange)) {
+        if preferredMethod == .gpuMPS, let attachment = GPUTextureAnalysis.histogramAttachment(
+            target, channel: channel,
+            bins: max(1, bins), height: height,
+            scope: TextureAnalysisScope(
+                region: region, mask: mask,
+                luminanceRange: luminanceRange,
+                colorRange: colorRange,
+                coverageThreshold: coverageThreshold, valueRange: valueRange
+            )
+        ) {
             return attachment
         }
         if mask == nil && luminanceRange == nil && colorRange == nil {
@@ -294,8 +304,13 @@ public extension MTLTextureCompatible_ {
                                   valueRange: TextureAnalysisValueRange) -> TextureHistogram? {
         guard TextureAnalysisReadback.supports(target) else { return nil }
         guard let resolvedRegion = resolvedHistogramRegion(region) else {
-            return TextureHistogram(channel: channel, bins: [UInt32](repeating: 0, count: max(1, bins)), totalSampleCount: 0,
-                valueRange: valueRange, pixelFormat: PixelFormatContract(pixelFormat: target.pixelFormat, preservesInput: false))
+            return TextureHistogram(
+                channel: channel,
+                bins: [UInt32](repeating: 0, count: max(1, bins)),
+                totalSampleCount: 0,
+                valueRange: valueRange,
+                pixelFormat: PixelFormatContract(pixelFormat: target.pixelFormat, preservesInput: false)
+            )
         }
         guard let readback = TextureAnalysisReadback(texture: target, region: resolvedRegion) else { return nil }
         return makeCPUHistogram(
@@ -357,7 +372,6 @@ public extension MTLTextureCompatible_ {
                     if let colorRange, colorRange.contains(red: red, green: green, blue: blue) == false {
                         continue
                     }
-
                     let value: Float
                     switch channel {
                     case .luminance: value = luminance
@@ -409,9 +423,7 @@ public extension MTLTextureCompatible_ {
         let remainingHeight = max(target.height - maxY, 0)
         let width = min(max(region.size.width, 0), remainingWidth)
         let height = min(max(region.size.height, 0), remainingHeight)
-        guard width > 0, height > 0 else {
-            return nil
-        }
+        guard width > 0, height > 0 else { return nil }
         return MTLRegionMake2D(maxX, maxY, width, height)
     }
 
@@ -458,9 +470,7 @@ struct MaskCoverageSample {
         let maskY = min(max((y * height) / sourceHeight, 0), height - 1)
         guard let color = readback.color(x: maskX, y: maskY) else { return 0 }
         let red = color.x
-        if normalizedCoverage {
-            return red
-        }
+        if normalizedCoverage { return red }
         let green = color.y
         let blue = color.z
         let alpha = color.w
