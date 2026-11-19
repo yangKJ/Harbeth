@@ -852,7 +852,7 @@ final class FilterPrimitiveCoverageTests: XCTestCase {
         XCTAssertEqual(legacyPlan.passes.first?.functionIdentity.primaryName, "C7SelectiveHSLPhotographicNeutral")
         XCTAssertEqual(plan.passes.first?.functionIdentity.primaryName, "C7SelectiveHSLPhotographicNeutralColorWindow")
         XCTAssertEqual(plan.passes.count, 1)
-        XCTAssertEqual(filter.kernelParameterBindings.map(\.index), [0, 1, 2, 3, 4])
+        XCTAssertEqual(filter.kernelParameterBindings.map(\.index), [0, 1, 2, 3, 4, 5])
         XCTAssertEqual(filter.kernelPixelContract, prior.kernelPixelContract)
 
         let old = try HarbethIO(element: source, filter: prior).renderTexture(profile: .exportQuality)
@@ -864,6 +864,46 @@ final class FilterPrimitiveCoverageTests: XCTestCase {
         XCTAssertEqual(Array(after[8...]), Array(before[8...]))
         XCTAssertEqual(after[3], before[3])
         XCTAssertEqual(after[7], before[7])
+        for channel in 0..<3 {
+            XCTAssertEqual(after[channel], 2 * after[channel + 4], accuracy: 0.002)
+        }
+    }
+
+    func testPhotographicNeutralWindowFadesOutAtHighSaturation() throws {
+        let hue = try XCTUnwrap(C7SelectiveHSL.HueWindow(
+            hueEdges: SIMD4<Float>(184, 195, 212, 224),
+            chromaEdges: SIMD2<Float>(0.24, 0.38),
+            rotation: 0
+        ))
+        let window = try XCTUnwrap(C7SelectiveHSL.NeutralColorWindow(
+            hueWindow: hue,
+            saturationDelta: 0,
+            saturationFadeRange: SIMD2<Float>(0.875, 0.96875),
+            lightnessDelta: 0.0625
+        ))
+        XCTAssertNil(C7SelectiveHSL.NeutralColorWindow(
+            hueWindow: hue, saturationDelta: 0, saturationFadeRange: SIMD2<Float>(0.9, 0.8)
+        ))
+        let prior = C7SelectiveHSL(response: .photographicNeutral)
+        let filter = C7SelectiveHSL(response: .photographicNeutral, neutralColorWindow: window)
+        let source = try makeRGBA16FloatTexture(width: 6, pixels: [
+            0.18, 0.58, 0.82, 1,
+            0.09, 0.29, 0.41, 0.5,
+            0.004, 0.444, 0.66, 1,
+            0.65, 0.28, 0.35, 1,
+            1.4, 1.4, 1.4, 1,
+            0, 0, 0, 0
+        ])
+        let size = C7Size(width: 6, height: 1)
+        XCTAssertEqual(filter.makeKernelExecutionPlan(inputSize: size).passes.count, 1)
+        let old = try HarbethIO(element: source, filter: prior).renderTexture(profile: .exportQuality)
+        let current = try HarbethIO(element: source, filter: filter).renderTexture(profile: .exportQuality)
+        let before = try rgba16FloatPixels(in: old)
+        let after = try rgba16FloatPixels(in: current)
+        XCTAssertGreaterThan(after[0], before[0] + 0.04)
+        XCTAssertEqual(after[3], before[3])
+        XCTAssertEqual(after[7], before[7])
+        XCTAssertEqual(Array(after[8...]), Array(before[8...]))
         for channel in 0..<3 {
             XCTAssertEqual(after[channel], 2 * after[channel + 4], accuracy: 0.002)
         }

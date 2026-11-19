@@ -44,11 +44,25 @@ public struct C7SelectiveHSL: C7FilterProtocol {
     public struct NeutralColorWindow: Equatable, Sendable {
         public let hueWindow: HueWindow
         public let saturationDelta: Float
+        /// HSL 饱和度从此区间逐渐退出局部校正。
+        public let saturationFadeRange: SIMD2<Float>?
+        public let lightnessDelta: Float
 
-        public init?(hueWindow: HueWindow, saturationDelta: Float) {
-            guard (-1...1).contains(saturationDelta) else { return nil }
+        public init?(
+            hueWindow: HueWindow,
+            saturationDelta: Float,
+            saturationFadeRange: SIMD2<Float>? = nil,
+            lightnessDelta: Float = 0
+        ) {
+            guard (-1...1).contains(saturationDelta), (-1...1).contains(lightnessDelta) else { return nil }
+            if let saturationFadeRange {
+                guard saturationFadeRange.x >= 0, saturationFadeRange.x < saturationFadeRange.y,
+                      saturationFadeRange.y <= 1 else { return nil }
+            }
             self.hueWindow = hueWindow
             self.saturationDelta = saturationDelta
+            self.saturationFadeRange = saturationFadeRange
+            self.lightnessDelta = lightnessDelta
         }
     }
 
@@ -115,6 +129,13 @@ public struct C7SelectiveHSL: C7FilterProtocol {
                     index: 4,
                     stage: .compute,
                     value: .float4(SIMD4(hue.chromaEdges.x, hue.chromaEdges.y, hue.rotation, window.saturationDelta))
+                ))
+                let fade = window.saturationFadeRange ?? SIMD2<Float>(repeating: 1)
+                bindings.append(KernelParameterBinding(
+                    name: "windowTone",
+                    index: 5,
+                    stage: .compute,
+                    value: .float3(SIMD3(fade.x, fade.y, window.lightnessDelta))
                 ))
             }
         }

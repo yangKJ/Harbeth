@@ -164,6 +164,7 @@ kernel void C7SelectiveHSLPhotographicNeutralColorWindow(
     constant float3 &neutralHighlights [[buffer(2)]],
     constant float4 &hueEdges [[buffer(3)]],
     constant float4 &colorAdjustment [[buffer(4)]],
+    constant float3 &windowTone [[buffer(5)]],
     uint2 grid [[thread_position_in_grid]]
 ) {
     const half4 input = inputTexture.read(grid);
@@ -177,16 +178,20 @@ kernel void C7SelectiveHSLPhotographicNeutralColorWindow(
     const float3 bounded = clamp(styled, 0.0f, 1.0f);
     const float chroma = max(max(bounded.r, bounded.g), bounded.b) - min(min(bounded.r, bounded.g), bounded.b);
     const float chromaWeight = smoothstep(colorAdjustment.x, colorAdjustment.y, chroma);
-    if (chromaWeight > 0.0f && any(colorAdjustment.zw != float2(0.0f))) {
+    if (chromaWeight > 0.0f && (any(colorAdjustment.zw != float2(0.0f)) || windowTone.z != 0.0f)) {
         float3 hsl = c7SelectiveRGBToHSL(bounded);
         const float hueWeight = smoothstep(hueEdges.x, hueEdges.y, hsl.x)
             * (1.0f - smoothstep(hueEdges.z, hueEdges.w, hsl.x));
-        const float weight = hueWeight * chromaWeight;
+        const float saturationWeight = windowTone.x < windowTone.y
+            ? 1.0f - smoothstep(windowTone.x, windowTone.y, hsl.y)
+            : 1.0f;
+        const float weight = hueWeight * chromaWeight * saturationWeight;
         if (weight > 0.0f) {
             hsl.x += colorAdjustment.z * weight;
             if (hsl.x < 0.0f) hsl.x += 360.0f;
             else if (hsl.x >= 360.0f) hsl.x -= 360.0f;
             hsl.y = clamp(hsl.y + colorAdjustment.w * weight, 0.0f, 1.0f);
+            hsl.z = clamp(hsl.z + windowTone.z * weight, 0.0f, 1.0f);
             styled += c7SelectiveHSLToRGB(hsl) - bounded;
         }
     }
