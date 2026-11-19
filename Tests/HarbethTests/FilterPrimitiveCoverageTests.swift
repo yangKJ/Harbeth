@@ -792,6 +792,37 @@ final class FilterPrimitiveCoverageTests: XCTestCase {
         }
     }
 
+    func testPhotographicHueWindowSeparatesWarmAndGreenInputInOnePass() throws {
+        let window = try XCTUnwrap(C7SelectiveHSL.HueWindow(
+            hueEdges: SIMD4<Float>(44, 57, 96, 118),
+            chromaEdges: SIMD2<Float>(0.12, 0.29),
+            rotation: 28.8
+        ))
+        let filter = C7SelectiveHSL(hueWindow: window)
+        let source = try makeRGBA16FloatTexture(width: 7, pixels: [
+            0.88, 0.87, 0.18, 1,
+            0.44, 0.435, 0.09, 0.5,
+            0.80, 0.47, 0.17, 1,
+            0.52, 0.52, 0.50, 1,
+            0.04, 0.04, 0.01, 1,
+            1.4, 1.4, 1.4, 1,
+            0, 0, 0, 0
+        ])
+        let before = try rgba16FloatPixels(in: source)
+        let output = try HarbethIO(element: source, filter: filter).renderTexture(profile: .exportQuality)
+        let after = try rgba16FloatPixels(in: output)
+
+        XCTAssertEqual(filter.makeKernelExecutionPlan(inputSize: C7Size(width: 7, height: 1)).passes.count, 1)
+        XCTAssertTrue(filter.kernelPixelContract.canAutoTile)
+        XCTAssertLessThan(after[0], before[0] - 0.15)
+        for channel in 0..<3 {
+            XCTAssertEqual(after[channel], 2 * after[channel + 4], accuracy: 0.002)
+        }
+        XCTAssertEqual(Array(after[8...]), Array(before[8...]))
+        XCTAssertEqual(after[3], before[3])
+        XCTAssertEqual(after[7], before[7])
+    }
+
     func testColorGradingShadowTintWeightsDarkPixelsMoreThanHighlights() throws {
         let source = try makeRGBA8Texture(
             width: 2,

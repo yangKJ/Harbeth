@@ -150,3 +150,33 @@ kernel void C7SelectiveHSLPhotographicNeutral(texture2d<half, access::write> out
     const float3 delta = clamp(bounded + correction, 0.0, 1.0) - bounded;
     outputTexture.write(half4(half3((styled + delta) * alpha), input.a), grid);
 }
+
+kernel void C7SelectiveHSLPhotographicHueWindow(texture2d<half, access::write> outputTexture [[texture(0)]],
+                                                texture2d<half, access::read> inputTexture [[texture(1)]],
+                                                constant float4 &hueEdges [[buffer(0)]],
+                                                constant float3 &chromaAndRotation [[buffer(1)]],
+                                                uint2 grid [[thread_position_in_grid]]) {
+    const half4 input = inputTexture.read(grid);
+    if (input.a <= 0.0h) {
+        outputTexture.write(half4(0.0h), grid);
+        return;
+    }
+
+    const float alpha = float(input.a);
+    const float3 straight = float3(input.rgb) / alpha;
+    const float3 bounded = clamp(straight, 0.0, 1.0);
+    float3 hsl = c7SelectiveRGBToHSL(bounded);
+    const float hueWeight = smoothstep(hueEdges.x, hueEdges.y, hsl.x)
+        * (1.0 - smoothstep(hueEdges.z, hueEdges.w, hsl.x));
+    const float chroma = max(max(bounded.r, bounded.g), bounded.b) - min(min(bounded.r, bounded.g), bounded.b);
+    const float chromaWeight = smoothstep(chromaAndRotation.x, chromaAndRotation.y, chroma);
+    const float rotation = chromaAndRotation.z * hueWeight * chromaWeight * smoothstep(0.045, 0.16, hsl.z);
+    if (rotation == 0.0) {
+        outputTexture.write(input, grid);
+        return;
+    }
+
+    hsl.x = fmod(hsl.x + rotation + 360.0, 360.0);
+    const float3 result = c7SelectiveHSLToRGB(hsl) + straight - bounded;
+    outputTexture.write(half4(half3(result * alpha), input.a), grid);
+}

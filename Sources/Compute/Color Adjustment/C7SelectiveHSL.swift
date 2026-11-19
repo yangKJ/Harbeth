@@ -18,6 +18,26 @@ public struct C7SelectiveHSL: C7FilterProtocol {
         case photographic
         /// 保留摄影响应，并在同一 pass 内调整低色度的亮部和暗部。
         case photographicNeutral
+        /// 在一个带柔和边缘的色相窗口内旋转色相，同时保护低色度和近黑像素。
+        case photographicHueWindow
+    }
+
+    public struct HueWindow: Equatable, Sendable {
+        /// 色相的进入、全权重起点、全权重终点与退出边缘，单位为度。
+        public let hueEdges: SIMD4<Float>
+        /// 编码 RGB 最大与最小通道差的起始和全权重阈值。
+        public let chromaEdges: SIMD2<Float>
+        public let rotation: Float
+
+        public init?(hueEdges: SIMD4<Float>, chromaEdges: SIMD2<Float>, rotation: Float) {
+            guard hueEdges.x >= 0, hueEdges.x < hueEdges.y, hueEdges.y <= hueEdges.z,
+                  hueEdges.z < hueEdges.w, hueEdges.w <= 360,
+                  chromaEdges.x >= 0, chromaEdges.x < chromaEdges.y, chromaEdges.y <= 1,
+                  (-60...60).contains(rotation) else { return nil }
+            self.hueEdges = hueEdges
+            self.chromaEdges = chromaEdges
+            self.rotation = rotation
+        }
     }
 
     public static let channelCount = 8
@@ -26,16 +46,34 @@ public struct C7SelectiveHSL: C7FilterProtocol {
     /// 仅在 photographicNeutral 下生效，按 RGB 分量在 -0.1...0.1 范围内偏移。
     public var neutralShadows: SIMD3<Float>
     public var neutralHighlights: SIMD3<Float>
+    public private(set) var hueWindow = HueWindow(
+        hueEdges: SIMD4<Float>(0, 1, 359, 360),
+        chromaEdges: SIMD2<Float>(0, 1),
+        rotation: 0
+    )!
 
     public var modifier: ModifierEnum {
         switch response {
         case .additive: return .compute(kernel: "C7SelectiveHSL")
         case .photographic: return .compute(kernel: "C7SelectiveHSLPhotographic")
         case .photographicNeutral: return .compute(kernel: "C7SelectiveHSLPhotographicNeutral")
+        case .photographicHueWindow: return .compute(kernel: "C7SelectiveHSLPhotographicHueWindow")
         }
     }
 
     public var kernelParameterBindings: [KernelParameterBinding] {
+        if response == .photographicHueWindow {
+            let chroma = hueWindow.chromaEdges
+            return [
+                KernelParameterBinding(name: "hueEdges", index: 0, stage: .compute, value: .float4(hueWindow.hueEdges)),
+                KernelParameterBinding(
+                    name: "chromaAndRotation",
+                    index: 1,
+                    stage: .compute,
+                    value: .float3(SIMD3<Float>(chroma.x, chroma.y, hueWindow.rotation))
+                )
+            ]
+        }
         var bindings = [
             KernelParameterBinding(
                 name: "adjustments",
@@ -60,7 +98,9 @@ public struct C7SelectiveHSL: C7FilterProtocol {
     }
 
     public var kernelPixelContract: KernelPixelContract {
-        guard response == .photographicNeutral else { return .conservative(samplingFootprint: samplingFootprint) }
+        guard response == .photographicNeutral || response == .photographicHueWindow else {
+            return .conservative(samplingFootprint: samplingFootprint)
+        }
         return KernelPixelContract(
             inputAlphaExpectation: .premultiplied,
             precision: .float32,
@@ -81,6 +121,11 @@ public struct C7SelectiveHSL: C7FilterProtocol {
         self.neutralHighlights = neutralHighlights
         let values = Array(adjustments.prefix(Self.channelCount))
         self.adjustments = values + Array(repeating: .zero, count: Self.channelCount - values.count)
+    }
+
+    public init(hueWindow: HueWindow) {
+        self.init(response: .photographicHueWindow)
+        self.hueWindow = hueWindow
     }
 
     private var normalizedAdjustments: [SIMD3<Float>] {
