@@ -66,6 +66,36 @@ public struct C7SelectiveHSL: C7FilterProtocol {
         }
     }
 
+    /// 在 sRGB 编码的摄影中性色响应中，按 Lab 明度与色度调节指定色相。
+    public struct LabColorWindow: Equatable, Sendable {
+        public let hueEdges: SIMD4<Float>
+        public let chromaEdges: SIMD2<Float>
+        public let highlightEdges: SIMD2<Float>
+        /// 明度 L*、径向色度增量和沿色相切向的 Lab 增量。
+        public let low: SIMD3<Float>
+        public let high: SIMD3<Float>
+
+        public init?(
+            hueEdges: SIMD4<Float>,
+            chromaEdges: SIMD2<Float>,
+            highlightEdges: SIMD2<Float>,
+            low: SIMD3<Float>,
+            high: SIMD3<Float>
+        ) {
+            guard hueEdges.x >= 0, hueEdges.x < hueEdges.y, hueEdges.y <= hueEdges.z,
+                  hueEdges.z < hueEdges.w, hueEdges.w <= 360,
+                  chromaEdges.x >= 0, chromaEdges.x < chromaEdges.y, chromaEdges.y.isFinite,
+                  highlightEdges.x >= 0, highlightEdges.x < highlightEdges.y, highlightEdges.y <= 100,
+                  low.x >= 0, low.x < high.x, high.x <= 100,
+                  [low.y, low.z, high.y, high.z].allSatisfy({ (-128...128).contains($0) }) else { return nil }
+            self.hueEdges = hueEdges
+            self.chromaEdges = chromaEdges
+            self.highlightEdges = highlightEdges
+            self.low = low
+            self.high = high
+        }
+    }
+
     public static let channelCount = 8
     public var adjustments: [SIMD3<Float>]
     public var response: Response
@@ -73,6 +103,7 @@ public struct C7SelectiveHSL: C7FilterProtocol {
     public var neutralShadows: SIMD3<Float>
     public var neutralHighlights: SIMD3<Float>
     public private(set) var neutralColorWindow: NeutralColorWindow?
+    public private(set) var labColorWindow: LabColorWindow?
     public private(set) var hueWindow = HueWindow(
         hueEdges: SIMD4<Float>(0, 1, 359, 360),
         chromaEdges: SIMD2<Float>(0, 1),
@@ -84,6 +115,7 @@ public struct C7SelectiveHSL: C7FilterProtocol {
         case .additive: return .compute(kernel: "C7SelectiveHSL")
         case .photographic: return .compute(kernel: "C7SelectiveHSLPhotographic")
         case .photographicNeutral:
+            if labColorWindow != nil { return .compute(kernel: "C7SelectiveHSLPhotographicLabColorWindow") }
             return .compute(kernel: neutralColorWindow == nil
                 ? "C7SelectiveHSLPhotographicNeutral"
                 : "C7SelectiveHSLPhotographicNeutralColorWindow")
@@ -119,25 +151,36 @@ public struct C7SelectiveHSL: C7FilterProtocol {
             bindings.append(KernelParameterBinding(
                 name: "neutralHighlights", index: 2, stage: .compute, value: .float3(neutralHighlights)
             ))
-            if let window = neutralColorWindow {
-                let hue = window.hueWindow
+            if neutralColorWindow != nil || labColorWindow != nil {
+                let window = neutralColorWindow
+                let hue = window?.hueWindow
+                let chroma = hue?.chromaEdges ?? SIMD2<Float>(0, 1)
                 bindings.append(KernelParameterBinding(
-                    name: "hueEdges", index: 3, stage: .compute, value: .float4(hue.hueEdges)
+                    name: "hueEdges", index: 3, stage: .compute, value: .float4(hue?.hueEdges ?? .zero)
                 ))
                 bindings.append(KernelParameterBinding(
                     name: "colorAdjustment",
                     index: 4,
                     stage: .compute,
-                    value: .float4(SIMD4(hue.chromaEdges.x, hue.chromaEdges.y, hue.rotation, window.saturationDelta))
+                    value: .float4(SIMD4(chroma.x, chroma.y, hue?.rotation ?? 0, window?.saturationDelta ?? 0))
                 ))
-                let fade = window.saturationFadeRange ?? SIMD2<Float>(repeating: 1)
+                let fade = window?.saturationFadeRange ?? SIMD2<Float>(repeating: 1)
                 bindings.append(KernelParameterBinding(
                     name: "windowTone",
                     index: 5,
                     stage: .compute,
-                    value: .float3(SIMD3(fade.x, fade.y, window.lightnessDelta))
+                    value: .float3(SIMD3(fade.x, fade.y, window?.lightnessDelta ?? 0))
                 ))
             }
+        }
+        if response == .photographicNeutral, let lab = labColorWindow {
+            let edges = SIMD4(lab.chromaEdges.x, lab.chromaEdges.y, lab.highlightEdges.x, lab.highlightEdges.y)
+            bindings += [
+                .init(name: "labHueEdges", index: 6, stage: .compute, value: .float4(lab.hueEdges)),
+                .init(name: "labChromaAndHighlightEdges", index: 7, stage: .compute, value: .float4(edges)),
+                .init(name: "labLow", index: 8, stage: .compute, value: .float3(lab.low)),
+                .init(name: "labHigh", index: 9, stage: .compute, value: .float3(lab.high)),
+            ]
         }
         return bindings
     }
@@ -164,12 +207,14 @@ public struct C7SelectiveHSL: C7FilterProtocol {
         response: Response = .additive,
         neutralShadows: SIMD3<Float> = .zero,
         neutralHighlights: SIMD3<Float> = .zero,
-        neutralColorWindow: NeutralColorWindow? = nil
+        neutralColorWindow: NeutralColorWindow? = nil,
+        labColorWindow: LabColorWindow? = nil
     ) {
         self.response = response
         self.neutralShadows = neutralShadows
         self.neutralHighlights = neutralHighlights
         self.neutralColorWindow = neutralColorWindow
+        self.labColorWindow = labColorWindow
         let values = Array(adjustments.prefix(Self.channelCount))
         self.adjustments = values + Array(repeating: .zero, count: Self.channelCount - values.count)
     }

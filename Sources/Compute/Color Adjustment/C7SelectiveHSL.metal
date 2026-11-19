@@ -156,6 +156,31 @@ kernel void C7SelectiveHSLPhotographicNeutral(texture2d<half, access::write> out
     outputTexture.write(half4(half3(color * alpha), input.a), grid);
 }
 
+static float3 applySelectiveHSLColorWindow(float3 styled, float4 hueEdges, float4 colorAdjustment, float3 windowTone) {
+    if (all(colorAdjustment.zw == float2(0.0f)) && windowTone.z == 0.0f) return styled;
+    const float3 bounded = clamp(styled, 0.0f, 1.0f);
+    const float chroma = max(max(bounded.r, bounded.g), bounded.b) - min(min(bounded.r, bounded.g), bounded.b);
+    const float chromaWeight = smoothstep(colorAdjustment.x, colorAdjustment.y, chroma);
+    if (chromaWeight > 0.0f) {
+        float3 hsl = c7SelectiveRGBToHSL(bounded);
+        const float hueWeight = smoothstep(hueEdges.x, hueEdges.y, hsl.x)
+            * (1.0f - smoothstep(hueEdges.z, hueEdges.w, hsl.x));
+        const float saturationWeight = windowTone.x < windowTone.y
+            ? 1.0f - smoothstep(windowTone.x, windowTone.y, hsl.y)
+            : 1.0f;
+        const float weight = hueWeight * chromaWeight * saturationWeight;
+        if (weight > 0.0f) {
+            hsl.x += colorAdjustment.z * weight;
+            if (hsl.x < 0.0f) hsl.x += 360.0f;
+            else if (hsl.x >= 360.0f) hsl.x -= 360.0f;
+            hsl.y = clamp(hsl.y + colorAdjustment.w * weight, 0.0f, 1.0f);
+            hsl.z = clamp(hsl.z + windowTone.z * weight, 0.0f, 1.0f);
+            styled += c7SelectiveHSLToRGB(hsl) - bounded;
+        }
+    }
+    return styled;
+}
+
 kernel void C7SelectiveHSLPhotographicNeutralColorWindow(
     texture2d<half, access::write> outputTexture [[texture(0)]],
     texture2d<half, access::read> inputTexture [[texture(1)]],
@@ -175,28 +200,101 @@ kernel void C7SelectiveHSLPhotographicNeutralColorWindow(
 
     const float alpha = float(input.a);
     float3 styled = selectiveHSLColor(float3(input.rgb) / alpha, adjustments, true);
-    const float3 bounded = clamp(styled, 0.0f, 1.0f);
-    const float chroma = max(max(bounded.r, bounded.g), bounded.b) - min(min(bounded.r, bounded.g), bounded.b);
-    const float chromaWeight = smoothstep(colorAdjustment.x, colorAdjustment.y, chroma);
-    if (chromaWeight > 0.0f && (any(colorAdjustment.zw != float2(0.0f)) || windowTone.z != 0.0f)) {
-        float3 hsl = c7SelectiveRGBToHSL(bounded);
-        const float hueWeight = smoothstep(hueEdges.x, hueEdges.y, hsl.x)
-            * (1.0f - smoothstep(hueEdges.z, hueEdges.w, hsl.x));
-        const float saturationWeight = windowTone.x < windowTone.y
-            ? 1.0f - smoothstep(windowTone.x, windowTone.y, hsl.y)
-            : 1.0f;
-        const float weight = hueWeight * chromaWeight * saturationWeight;
-        if (weight > 0.0f) {
-            hsl.x += colorAdjustment.z * weight;
-            if (hsl.x < 0.0f) hsl.x += 360.0f;
-            else if (hsl.x >= 360.0f) hsl.x -= 360.0f;
-            hsl.y = clamp(hsl.y + colorAdjustment.w * weight, 0.0f, 1.0f);
-            hsl.z = clamp(hsl.z + windowTone.z * weight, 0.0f, 1.0f);
-            styled += c7SelectiveHSLToRGB(hsl) - bounded;
-        }
-    }
+    styled = applySelectiveHSLColorWindow(styled, hueEdges, colorAdjustment, windowTone);
     const float3 color = finishPhotographicNeutral(styled, neutralShadows, neutralHighlights);
     outputTexture.write(half4(half3(color * alpha), input.a), grid);
+}
+
+static float3 labWindowLinearRGB(float light, float2 chroma) {
+    const float fy = (light + 16.0f) / 116.0f;
+    const float3 f = float3(fy + chroma.x / 500.0f, fy, fy - chroma.y / 200.0f);
+    const float3 xyz = select((f - 16.0f / 116.0f) / 7.787f, f * f * f, f > 0.2068966f)
+        * float3(0.95047f, 1.0f, 1.08883f);
+    return float3(dot(xyz, float3(3.24048134f, -1.53715152f, -0.49853633f)),
+                  dot(xyz, float3(-0.96925495f, 1.87599f, 0.04155593f)),
+                  dot(xyz, float3(0.05564664f, -0.20404134f, 1.05731107f)));
+}
+
+static bool labWindowInGamut(float3 rgb) {
+    return all(rgb >= 0.0f) && all(rgb <= 1.0f);
+}
+
+static float3 applyLabColorWindow(
+    float3 rgb, float4 hueEdges, float4 edges, float3 low, float3 high
+) {
+    if (!labWindowInGamut(rgb) || all(rgb == rgb.rrr)) return rgb;
+    const float3 linear = select(rgb / 12.92f, pow((rgb + 0.055f) / 1.055f, 2.4f), rgb > 0.04045f);
+    const float3 xyz = float3(dot(linear, float3(0.412453f, 0.35758f, 0.180423f)),
+                              dot(linear, float3(0.212671f, 0.71516f, 0.072169f)),
+                              dot(linear, float3(0.019334f, 0.119193f, 0.950227f)))
+        / float3(0.95047f, 1.0f, 1.08883f);
+    // Lab 中 b* 的符号与归一化 Y-Z 相同，无需为不在目标半圈内的像素计算明度。
+    if ((hueEdges.x >= 180.0f && xyz.y > xyz.z) || (hueEdges.w <= 180.0f && xyz.y < xyz.z)) return rgb;
+
+    const float3 f = select(7.787f * xyz + 16.0f / 116.0f, pow(xyz, 1.0f / 3.0f), xyz > 0.008856f);
+    const float light = 116.0f * f.y - 16.0f;
+    const float2 ab = float2(500.0f * (f.x - f.y), 200.0f * (f.y - f.z));
+    const float chroma = length(ab);
+    if (light >= edges.w || chroma <= edges.x) return rgb;
+
+    const float angle = atan2(ab.y, ab.x) * 57.295779513f;
+    const float hue = angle < 0.0f ? angle + 360.0f : angle;
+    const float weight = smoothstep(hueEdges.x, hueEdges.y, hue)
+        * (1.0f - smoothstep(hueEdges.z, hueEdges.w, hue))
+        * smoothstep(edges.x, edges.y, chroma)
+        * (1.0f - smoothstep(edges.z, edges.w, light));
+    if (weight <= 0.0f) return rgb;
+
+    const float2 axis = ab / chroma;
+    const float2 shifts = mix(low.yz, high.yz, clamp((light - low.x) / (high.x - low.x), 0.0f, 1.0f));
+    const float2 delta = weight * (shifts.x * axis + shifts.y * float2(-axis.y, axis.x));
+    if (all(delta == 0.0f)) return rgb;
+    float3 output = labWindowLinearRGB(light, ab + delta);
+    if (!labWindowInGamut(output)) {
+        // 色域外逐步减弱位移，保持同一明度及变化方向。
+        float lower = 0.0f;
+        float upper = 1.0f;
+        for (uint step = 0; step < 9; ++step) {
+            const float amount = (lower + upper) * 0.5f;
+            if (labWindowInGamut(labWindowLinearRGB(light, ab + delta * amount))) lower = amount;
+            else upper = amount;
+        }
+        if (lower == 0.0f) return rgb;
+        output = labWindowLinearRGB(light, ab + delta * lower);
+    }
+    return select(12.92f * output, 1.055f * pow(output, 1.0f / 2.4f) - 0.055f, output > 0.0031308f);
+}
+
+kernel void C7SelectiveHSLPhotographicLabColorWindow(
+    texture2d<half, access::write> outputTexture [[texture(0)]],
+    texture2d<half, access::read> inputTexture [[texture(1)]],
+    constant float *adjustments [[buffer(0)]],
+    constant float3 &neutralShadows [[buffer(1)]],
+    constant float3 &neutralHighlights [[buffer(2)]],
+    constant float4 &hueEdges [[buffer(3)]],
+    constant float4 &colorAdjustment [[buffer(4)]],
+    constant float3 &windowTone [[buffer(5)]],
+    constant float4 &labHueEdges [[buffer(6)]],
+    constant float4 &labChromaAndHighlightEdges [[buffer(7)]],
+    constant float3 &labLow [[buffer(8)]],
+    constant float3 &labHigh [[buffer(9)]],
+    uint2 grid [[thread_position_in_grid]]
+) {
+    if (grid.x >= outputTexture.get_width() || grid.y >= outputTexture.get_height()) return;
+    const half4 input = inputTexture.read(grid);
+    if (input.a <= 0.0h) {
+        outputTexture.write(half4(0.0h), grid);
+        return;
+    }
+    const float alpha = float(input.a);
+    float3 styled = selectiveHSLColor(float3(input.rgb) / alpha, adjustments, true);
+    styled = applySelectiveHSLColorWindow(styled, hueEdges, colorAdjustment, windowTone);
+    const float3 color = finishPhotographicNeutral(styled, neutralShadows, neutralHighlights);
+    // 保留上一段调色原有的半精度边界，使未命中 Lab 色窗的像素直接复用。
+    const half3 original = half3(color * alpha);
+    const float3 straight = float3(original) / alpha;
+    const float3 adjusted = applyLabColorWindow(straight, labHueEdges, labChromaAndHighlightEdges, labLow, labHigh);
+    outputTexture.write(half4(all(adjusted == straight) ? original : half3(adjusted * alpha), input.a), grid);
 }
 
 kernel void C7SelectiveHSLPhotographicHueWindow(texture2d<half, access::write> outputTexture [[texture(0)]],
