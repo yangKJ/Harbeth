@@ -755,6 +755,43 @@ final class FilterPrimitiveCoverageTests: XCTestCase {
         XCTAssertTrue(photographic.kernelPixelContract.canAutoTile)
     }
 
+    func testPhotographicNeutralChangesOnlyEligiblePixelsInOnePass() throws {
+        let source = try makeRGBA16FloatTexture(width: 9, pixels: [
+            0.71, 0.71, 0.71, 1,
+            0.355, 0.355, 0.355, 0.5,
+            0.12, 0.12, 0.12, 1,
+            0.12, 0.34, 0.75, 1,
+            1, 1, 1, 1,
+            1.4, 1.4, 1.4, 1,
+            -0.1, -0.1, -0.1, 1,
+            0, 0, 0, 0.34,
+            0, 0, 0, 0
+        ])
+        let filter = C7SelectiveHSL(
+            response: .photographicNeutral,
+            neutralShadows: SIMD3<Float>(-0.018, 0.005, 0),
+            neutralHighlights: SIMD3<Float>(0.065, 0, -0.004)
+        )
+        let baseline = try rgba16FloatPixels(in: source)
+        let rendered = try HarbethIO(element: source, filter: filter).renderTexture(profile: .exportQuality)
+        let result = try rgba16FloatPixels(in: rendered)
+
+        XCTAssertEqual(filter.makeKernelExecutionPlan(inputSize: C7Size(width: 9, height: 1)).passes.count, 1)
+        XCTAssertTrue(filter.kernelPixelContract.canAutoTile)
+        XCTAssertEqual(filter.kernelPixelContract.inputAlphaExpectation, .premultiplied)
+        XCTAssertGreaterThan(result[0], baseline[0] + 0.03)
+        XCTAssertLessThan(result[8], baseline[8] - 0.01)
+        for channel in 0..<3 {
+            XCTAssertEqual(result[4 + channel] * 2, result[channel], accuracy: 0.001)
+        }
+        for channel in 12..<result.count {
+            XCTAssertEqual(result[channel], baseline[channel], accuracy: 0.001)
+        }
+        for index in stride(from: 3, to: result.count, by: 4) {
+            XCTAssertEqual(result[index], baseline[index])
+        }
+    }
+
     func testColorGradingShadowTintWeightsDarkPixelsMoreThanHighlights() throws {
         let source = try makeRGBA8Texture(
             width: 2,

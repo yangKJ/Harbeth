@@ -8,6 +8,12 @@ Harbeth 的公开变更按时间倒序记录，格式遵循 [Keep a Changelog](h
 
 > Target: Harbeth 3.0.0. This is a breaking upgrade from 2.x; read the [3.0 migration guide](docs/MIGRATION_3_CN.md) before adopting it.
 
+### 2026-11-20
+
+#### Added
+
+- 摄影 HSL 增加可选低色度亮暗偏移，在同一逐像素渲染中支持预乘透明度与扩展范围。
+
 ### 2026-11-19
 
 #### Fixed
