@@ -40,12 +40,25 @@ public struct C7SelectiveHSL: C7FilterProtocol {
         }
     }
 
+    /// 在摄影中性色响应内，对指定色相和色度附加局部色彩调整。
+    public struct NeutralColorWindow: Equatable, Sendable {
+        public let hueWindow: HueWindow
+        public let saturationDelta: Float
+
+        public init?(hueWindow: HueWindow, saturationDelta: Float) {
+            guard (-1...1).contains(saturationDelta) else { return nil }
+            self.hueWindow = hueWindow
+            self.saturationDelta = saturationDelta
+        }
+    }
+
     public static let channelCount = 8
     public var adjustments: [SIMD3<Float>]
     public var response: Response
     /// 仅在 photographicNeutral 下生效，按 RGB 分量在 -0.1...0.1 范围内偏移。
     public var neutralShadows: SIMD3<Float>
     public var neutralHighlights: SIMD3<Float>
+    public private(set) var neutralColorWindow: NeutralColorWindow?
     public private(set) var hueWindow = HueWindow(
         hueEdges: SIMD4<Float>(0, 1, 359, 360),
         chromaEdges: SIMD2<Float>(0, 1),
@@ -56,7 +69,10 @@ public struct C7SelectiveHSL: C7FilterProtocol {
         switch response {
         case .additive: return .compute(kernel: "C7SelectiveHSL")
         case .photographic: return .compute(kernel: "C7SelectiveHSLPhotographic")
-        case .photographicNeutral: return .compute(kernel: "C7SelectiveHSLPhotographicNeutral")
+        case .photographicNeutral:
+            return .compute(kernel: neutralColorWindow == nil
+                ? "C7SelectiveHSLPhotographicNeutral"
+                : "C7SelectiveHSLPhotographicNeutralColorWindow")
         case .photographicHueWindow: return .compute(kernel: "C7SelectiveHSLPhotographicHueWindow")
         }
     }
@@ -89,6 +105,18 @@ public struct C7SelectiveHSL: C7FilterProtocol {
             bindings.append(KernelParameterBinding(
                 name: "neutralHighlights", index: 2, stage: .compute, value: .float3(neutralHighlights)
             ))
+            if let window = neutralColorWindow {
+                let hue = window.hueWindow
+                bindings.append(KernelParameterBinding(
+                    name: "hueEdges", index: 3, stage: .compute, value: .float4(hue.hueEdges)
+                ))
+                bindings.append(KernelParameterBinding(
+                    name: "colorAdjustment",
+                    index: 4,
+                    stage: .compute,
+                    value: .float4(SIMD4(hue.chromaEdges.x, hue.chromaEdges.y, hue.rotation, window.saturationDelta))
+                ))
+            }
         }
         return bindings
     }
@@ -114,11 +142,13 @@ public struct C7SelectiveHSL: C7FilterProtocol {
         adjustments: [SIMD3<Float>] = [],
         response: Response = .additive,
         neutralShadows: SIMD3<Float> = .zero,
-        neutralHighlights: SIMD3<Float> = .zero
+        neutralHighlights: SIMD3<Float> = .zero,
+        neutralColorWindow: NeutralColorWindow? = nil
     ) {
         self.response = response
         self.neutralShadows = neutralShadows
         self.neutralHighlights = neutralHighlights
+        self.neutralColorWindow = neutralColorWindow
         let values = Array(adjustments.prefix(Self.channelCount))
         self.adjustments = values + Array(repeating: .zero, count: Self.channelCount - values.count)
     }

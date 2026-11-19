@@ -823,6 +823,52 @@ final class FilterPrimitiveCoverageTests: XCTestCase {
         XCTAssertEqual(after[7], before[7])
     }
 
+    func testPhotographicNeutralColorWindowUsesOnePassAndPreservesCoverage() throws {
+        let hue = try XCTUnwrap(C7SelectiveHSL.HueWindow(
+            hueEdges: SIMD4<Float>(22, 34, 46, 65),
+            chromaEdges: SIMD2<Float>(0.925, 0.995),
+            rotation: 3.8
+        ))
+        let window = try XCTUnwrap(C7SelectiveHSL.NeutralColorWindow(hueWindow: hue, saturationDelta: -0.04))
+        XCTAssertNil(C7SelectiveHSL.NeutralColorWindow(hueWindow: hue, saturationDelta: .nan))
+        let source = try makeRGBA16FloatTexture(width: 7, pixels: [
+            0.99, 0.60, 0.01, 1,
+            0.495, 0.30, 0.005, 0.5,
+            0.78, 0.51, 0.32, 1,
+            0.72, 0.72, 0.72, 1,
+            0.05, 0.35, 1, 1,
+            1.7, 1.7, 1.7, 1,
+            0, 0, 0, 0
+        ])
+        let prior = C7SelectiveHSL(response: .photographicNeutral, neutralHighlights: SIMD3(0.01, 0, -0.01))
+        let filter = C7SelectiveHSL(
+            response: .photographicNeutral,
+            neutralHighlights: prior.neutralHighlights,
+            neutralColorWindow: window
+        )
+        let size = C7Size(width: 7, height: 1)
+        let legacyPlan = prior.makeKernelExecutionPlan(inputSize: size)
+        let plan = filter.makeKernelExecutionPlan(inputSize: size)
+        XCTAssertEqual(legacyPlan.passes.first?.functionIdentity.primaryName, "C7SelectiveHSLPhotographicNeutral")
+        XCTAssertEqual(plan.passes.first?.functionIdentity.primaryName, "C7SelectiveHSLPhotographicNeutralColorWindow")
+        XCTAssertEqual(plan.passes.count, 1)
+        XCTAssertEqual(filter.kernelParameterBindings.map(\.index), [0, 1, 2, 3, 4])
+        XCTAssertEqual(filter.kernelPixelContract, prior.kernelPixelContract)
+
+        let old = try HarbethIO(element: source, filter: prior).renderTexture(profile: .exportQuality)
+        let current = try HarbethIO(element: source, filter: filter).renderTexture(profile: .exportQuality)
+        let before = try rgba16FloatPixels(in: old)
+        let after = try rgba16FloatPixels(in: current)
+        XCTAssertGreaterThan(after[1], before[1] + 0.025)
+        XCTAssertGreaterThan(after[2], before[2] + 0.01)
+        XCTAssertEqual(Array(after[8...]), Array(before[8...]))
+        XCTAssertEqual(after[3], before[3])
+        XCTAssertEqual(after[7], before[7])
+        for channel in 0..<3 {
+            XCTAssertEqual(after[channel], 2 * after[channel + 4], accuracy: 0.002)
+        }
+    }
+
     func testColorGradingShadowTintWeightsDarkPixelsMoreThanHighlights() throws {
         let source = try makeRGBA8Texture(
             width: 2,

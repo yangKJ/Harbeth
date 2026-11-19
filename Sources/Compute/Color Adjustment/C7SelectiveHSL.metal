@@ -123,6 +123,21 @@ kernel void C7SelectiveHSLPhotographic(texture2d<half, access::write> outputText
     outputTexture.write(half4(half3(output), input.a), grid);
 }
 
+static float3 finishPhotographicNeutral(float3 styled, float3 neutralShadows, float3 neutralHighlights) {
+    const float3 bounded = clamp(styled, 0.0, 1.0);
+    const float chroma = max(max(bounded.r, bounded.g), bounded.b) - min(min(bounded.r, bounded.g), bounded.b);
+    const float neutral = 1.0 - smoothstep(0.035, 0.20, chroma);
+    const float luma = dot(bounded, float3(0.2126, 0.7152, 0.0722));
+    const float shadow = smoothstep(0.015, 0.09, luma) * (1.0 - smoothstep(0.12, 0.37, luma));
+    const float highlight = smoothstep(0.46, 0.72, luma) * min(1.0, (1.0 - luma) * 5.0);
+
+    // 调整在显示色域端点衰减，回加原有扩展范围并恢复预乘覆盖。
+    const float3 correction = neutral * (clamp(neutralShadows, -0.1, 0.1) * shadow
+                                        + clamp(neutralHighlights, -0.1, 0.1) * highlight);
+    const float3 delta = clamp(bounded + correction, 0.0, 1.0) - bounded;
+    return styled + delta;
+}
+
 kernel void C7SelectiveHSLPhotographicNeutral(texture2d<half, access::write> outputTexture [[texture(0)]],
                                               texture2d<half, access::read> inputTexture [[texture(1)]],
                                               constant float *adjustments [[buffer(0)]],
@@ -137,18 +152,46 @@ kernel void C7SelectiveHSLPhotographicNeutral(texture2d<half, access::write> out
 
     const float alpha = float(input.a);
     const float3 styled = selectiveHSLColor(float3(input.rgb) / alpha, adjustments, true);
-    const float3 bounded = clamp(styled, 0.0, 1.0);
-    const float chroma = max(max(bounded.r, bounded.g), bounded.b) - min(min(bounded.r, bounded.g), bounded.b);
-    const float neutral = 1.0 - smoothstep(0.035, 0.20, chroma);
-    const float luma = dot(bounded, float3(0.2126, 0.7152, 0.0722));
-    const float shadow = smoothstep(0.015, 0.09, luma) * (1.0 - smoothstep(0.12, 0.37, luma));
-    const float highlight = smoothstep(0.46, 0.72, luma) * min(1.0, (1.0 - luma) * 5.0);
+    const float3 color = finishPhotographicNeutral(styled, neutralShadows, neutralHighlights);
+    outputTexture.write(half4(half3(color * alpha), input.a), grid);
+}
 
-    // 调整在显示色域端点衰减，回加原有扩展范围并恢复预乘覆盖。
-    const float3 correction = neutral * (clamp(neutralShadows, -0.1, 0.1) * shadow
-                                        + clamp(neutralHighlights, -0.1, 0.1) * highlight);
-    const float3 delta = clamp(bounded + correction, 0.0, 1.0) - bounded;
-    outputTexture.write(half4(half3((styled + delta) * alpha), input.a), grid);
+kernel void C7SelectiveHSLPhotographicNeutralColorWindow(
+    texture2d<half, access::write> outputTexture [[texture(0)]],
+    texture2d<half, access::read> inputTexture [[texture(1)]],
+    constant float *adjustments [[buffer(0)]],
+    constant float3 &neutralShadows [[buffer(1)]],
+    constant float3 &neutralHighlights [[buffer(2)]],
+    constant float4 &hueEdges [[buffer(3)]],
+    constant float4 &colorAdjustment [[buffer(4)]],
+    uint2 grid [[thread_position_in_grid]]
+) {
+    const half4 input = inputTexture.read(grid);
+    if (input.a <= 0.0h) {
+        outputTexture.write(half4(0.0h), grid);
+        return;
+    }
+
+    const float alpha = float(input.a);
+    float3 styled = selectiveHSLColor(float3(input.rgb) / alpha, adjustments, true);
+    const float3 bounded = clamp(styled, 0.0f, 1.0f);
+    const float chroma = max(max(bounded.r, bounded.g), bounded.b) - min(min(bounded.r, bounded.g), bounded.b);
+    const float chromaWeight = smoothstep(colorAdjustment.x, colorAdjustment.y, chroma);
+    if (chromaWeight > 0.0f && any(colorAdjustment.zw != float2(0.0f))) {
+        float3 hsl = c7SelectiveRGBToHSL(bounded);
+        const float hueWeight = smoothstep(hueEdges.x, hueEdges.y, hsl.x)
+            * (1.0f - smoothstep(hueEdges.z, hueEdges.w, hsl.x));
+        const float weight = hueWeight * chromaWeight;
+        if (weight > 0.0f) {
+            hsl.x += colorAdjustment.z * weight;
+            if (hsl.x < 0.0f) hsl.x += 360.0f;
+            else if (hsl.x >= 360.0f) hsl.x -= 360.0f;
+            hsl.y = clamp(hsl.y + colorAdjustment.w * weight, 0.0f, 1.0f);
+            styled += c7SelectiveHSLToRGB(hsl) - bounded;
+        }
+    }
+    const float3 color = finishPhotographicNeutral(styled, neutralShadows, neutralHighlights);
+    outputTexture.write(half4(half3(color * alpha), input.a), grid);
 }
 
 kernel void C7SelectiveHSLPhotographicHueWindow(texture2d<half, access::write> outputTexture [[texture(0)]],
