@@ -1017,6 +1017,44 @@ final class FilterPrimitiveCoverageTests: XCTestCase {
         }
     }
 
+    func testPhotographicHighlightNeutralizationKeepsCoverageAndExtendedBlue() throws {
+        let highlights = try XCTUnwrap(C7SelectiveHSL.HighlightNeutralization(
+            amount: 0.65,
+            greenEdges: SIMD2(0.74, 0.93),
+            blueEdges: SIMD2(0.82, 0.97),
+            chromaEdges: SIMD4(0.012, 0.065, 0.25, 0.42),
+            cyanEdges: SIMD2(0.30, 0.58)
+        ))
+        let source = try makeRGBA16FloatTexture(width: 6, pixels: [
+            0.81, 0.93, 1.12, 1,
+            0.405, 0.465, 0.56, 0.5,
+            0.92, 0.88, 0.80, 1,
+            0.29, 0.55, 0.95, 1,
+            0.94, 0.94, 0.94, 1,
+            0, 0, 0, 0,
+        ])
+        let reference = C7SelectiveHSL(response: .photographicNeutral)
+        let filter = C7SelectiveHSL(highlightNeutralization: highlights)
+        XCTAssertEqual(
+            filter.makeKernelExecutionPlan(inputSize: C7Size(width: 6, height: 1)).passes
+                .map { $0.functionIdentity.primaryName },
+            ["C7SelectiveHSLPhotographicHighlights"]
+        )
+        let baseline = try HarbethIO(element: source, filter: reference).renderTexture(profile: .exportQuality)
+        let adjusted = try HarbethIO(element: source, filter: filter).renderTexture(profile: .exportQuality)
+        let before = try rgba16FloatPixels(in: baseline)
+        let after = try rgba16FloatPixels(in: adjusted)
+        XCTAssertGreaterThan(after[0], before[0] + 0.09)
+        XCTAssertGreaterThan(after[1], before[1] + 0.03)
+        XCTAssertEqual(after[2], before[2])
+        XCTAssertEqual(after[3], before[3])
+        XCTAssertEqual(after[7], before[7])
+        XCTAssertEqual(Array(after.dropFirst(8)), Array(before.dropFirst(8)))
+        for channel in 0..<3 {
+            XCTAssertEqual(after[channel], 2 * after[channel + 4], accuracy: 0.002)
+        }
+    }
+
     func testPhotographicNeutralWindowFadesOutAtHighSaturation() throws {
         let hue = try XCTUnwrap(C7SelectiveHSL.HueWindow(
             hueEdges: SIMD4<Float>(184, 195, 212, 224),

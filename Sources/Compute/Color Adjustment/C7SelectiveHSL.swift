@@ -96,6 +96,36 @@ public struct C7SelectiveHSL: C7FilterProtocol {
         }
     }
 
+    /// 提升高亮冷色中的较低通道。各边界以编码 RGB 为单位。
+    public struct HighlightNeutralization: Equatable, Sendable {
+        public let amount: Float
+        public let greenEdges: SIMD2<Float>
+        public let blueEdges: SIMD2<Float>
+        public let chromaEdges: SIMD4<Float>
+        public let cyanEdges: SIMD2<Float>
+
+        public init?(
+            amount: Float,
+            greenEdges: SIMD2<Float>,
+            blueEdges: SIMD2<Float>,
+            chromaEdges: SIMD4<Float>,
+            cyanEdges: SIMD2<Float>
+        ) {
+            let pairedEdges = [greenEdges, blueEdges, cyanEdges]
+            guard (0...1).contains(amount),
+                  pairedEdges.allSatisfy({ $0.x >= 0 && $0.x < $0.y && $0.y <= 1 }),
+                  chromaEdges.x > 0, chromaEdges.x < chromaEdges.y,
+                  chromaEdges.y <= chromaEdges.z, chromaEdges.z < chromaEdges.w, chromaEdges.w <= 1 else {
+                return nil
+            }
+            self.amount = amount
+            self.greenEdges = greenEdges
+            self.blueEdges = blueEdges
+            self.chromaEdges = chromaEdges
+            self.cyanEdges = cyanEdges
+        }
+    }
+
     public static let channelCount = 8
     public var adjustments: [SIMD3<Float>]
     public var response: Response
@@ -104,6 +134,7 @@ public struct C7SelectiveHSL: C7FilterProtocol {
     public var neutralHighlights: SIMD3<Float>
     public private(set) var neutralColorWindow: NeutralColorWindow?
     public private(set) var labColorWindow: LabColorWindow?
+    public private(set) var highlightNeutralization: HighlightNeutralization?
     public private(set) var hueWindow = HueWindow(
         hueEdges: SIMD4<Float>(0, 1, 359, 360),
         chromaEdges: SIMD2<Float>(0, 1),
@@ -115,6 +146,7 @@ public struct C7SelectiveHSL: C7FilterProtocol {
         case .additive: return .compute(kernel: "C7SelectiveHSL")
         case .photographic: return .compute(kernel: "C7SelectiveHSLPhotographic")
         case .photographicNeutral:
+            if highlightNeutralization != nil { return .compute(kernel: "C7SelectiveHSLPhotographicHighlights") }
             if labColorWindow != nil { return .compute(kernel: "C7SelectiveHSLPhotographicLabColorWindow") }
             return .compute(kernel: neutralColorWindow == nil
                 ? "C7SelectiveHSLPhotographicNeutral"
@@ -151,7 +183,7 @@ public struct C7SelectiveHSL: C7FilterProtocol {
             bindings.append(KernelParameterBinding(
                 name: "neutralHighlights", index: 2, stage: .compute, value: .float3(neutralHighlights)
             ))
-            if neutralColorWindow != nil || labColorWindow != nil {
+            if neutralColorWindow != nil || labColorWindow != nil || highlightNeutralization != nil {
                 let window = neutralColorWindow
                 let hue = window?.hueWindow
                 let chroma = hue?.chromaEdges ?? SIMD2<Float>(0, 1)
@@ -172,6 +204,15 @@ public struct C7SelectiveHSL: C7FilterProtocol {
                     value: .float3(SIMD3(fade.x, fade.y, window?.lightnessDelta ?? 0))
                 ))
             }
+        }
+        if response == .photographicNeutral, let highlight = highlightNeutralization {
+            let tone = SIMD4(highlight.greenEdges.x, highlight.greenEdges.y, highlight.blueEdges.x, highlight.blueEdges.y)
+            let strength = SIMD3(highlight.cyanEdges.x, highlight.cyanEdges.y, highlight.amount)
+            bindings += [
+                .init(name: "highlightToneEdges", index: 6, stage: .compute, value: .float4(tone)),
+                .init(name: "highlightChromaEdges", index: 7, stage: .compute, value: .float4(highlight.chromaEdges)),
+                .init(name: "highlightCyanAndAmount", index: 8, stage: .compute, value: .float3(strength)),
+            ]
         }
         if response == .photographicNeutral, let lab = labColorWindow {
             let edges = SIMD4(lab.chromaEdges.x, lab.chromaEdges.y, lab.highlightEdges.x, lab.highlightEdges.y)
@@ -217,6 +258,23 @@ public struct C7SelectiveHSL: C7FilterProtocol {
         self.labColorWindow = labColorWindow
         let values = Array(adjustments.prefix(Self.channelCount))
         self.adjustments = values + Array(repeating: .zero, count: Self.channelCount - values.count)
+    }
+
+    public init(
+        adjustments: [SIMD3<Float>] = [],
+        neutralShadows: SIMD3<Float> = .zero,
+        neutralHighlights: SIMD3<Float> = .zero,
+        neutralColorWindow: NeutralColorWindow? = nil,
+        highlightNeutralization: HighlightNeutralization
+    ) {
+        self.init(
+            adjustments: adjustments, response: .photographicNeutral,
+            neutralShadows: neutralShadows, neutralHighlights: neutralHighlights,
+            neutralColorWindow: neutralColorWindow
+        )
+        if highlightNeutralization.amount > 0 {
+            self.highlightNeutralization = highlightNeutralization
+        }
     }
 
     public init(hueWindow: HueWindow) {

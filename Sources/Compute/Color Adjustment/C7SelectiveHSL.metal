@@ -194,6 +194,46 @@ kernel void C7SelectiveHSLPhotographicNeutralColorWindow(texture2d<half, access:
     outputTexture.write(half4(half3(color * alpha), input.a), grid);
 }
 
+static float3 neutralizeCoolHighlights(float3 source, float4 tone, float4 chroma, float3 cyanAndAmount) {
+    const float3 bounded = clamp(source, 0.0f, 1.0f);
+    const float span = bounded.b - bounded.r;
+    if (bounded.g <= tone.x || bounded.b <= tone.z || span <= chroma.x || span >= chroma.w) return source;
+
+    const float cyan = (bounded.g - bounded.r) / span;
+    if (cyan <= cyanAndAmount.x) return source;
+    const float weight = smoothstep(tone.x, tone.y, bounded.g) * smoothstep(tone.z, tone.w, bounded.b)
+        * smoothstep(chroma.x, chroma.y, span) * (1.0f - smoothstep(chroma.z, chroma.w, span))
+        * smoothstep(cyanAndAmount.x, cyanAndAmount.y, cyan) * cyanAndAmount.z;
+    // 仅增加较低通道，保留蓝通道及原有扩展高光。
+    return source + weight * max(bounded.b - bounded, 0.0f);
+}
+
+kernel void C7SelectiveHSLPhotographicHighlights(texture2d<half, access::write> outputTexture [[texture(0)]],
+                                                texture2d<half, access::read> inputTexture [[texture(1)]],
+                                                constant float *adjustments [[buffer(0)]],
+                                                constant float3 &neutralShadows [[buffer(1)]],
+                                                constant float3 &neutralHighlights [[buffer(2)]],
+                                                constant float4 &hueEdges [[buffer(3)]],
+                                                constant float4 &colorAdjustment [[buffer(4)]],
+                                                constant float3 &windowTone [[buffer(5)]],
+                                                constant float4 &highlightToneEdges [[buffer(6)]],
+                                                constant float4 &highlightChromaEdges [[buffer(7)]],
+                                                constant float3 &highlightCyanAndAmount [[buffer(8)]],
+                                                uint2 grid [[thread_position_in_grid]]) {
+    if (grid.x >= outputTexture.get_width() || grid.y >= outputTexture.get_height()) return;
+    const half4 input = inputTexture.read(grid);
+    if (input.a <= 0.0h) {
+        outputTexture.write(half4(0.0h), grid);
+        return;
+    }
+    const float alpha = float(input.a);
+    float3 color = selectiveHSLColor(float3(input.rgb) / alpha, adjustments, true);
+    color = applySelectiveHSLColorWindow(color, hueEdges, colorAdjustment, windowTone);
+    color = finishPhotographicNeutral(color, neutralShadows, neutralHighlights);
+    color = neutralizeCoolHighlights(color, highlightToneEdges, highlightChromaEdges, highlightCyanAndAmount);
+    outputTexture.write(half4(half3(color * alpha), input.a), grid);
+}
+
 static float3 labWindowLinearRGB(float light, float2 chroma) {
     const float fy = (light + 16.0f) / 116.0f;
     const float3 f = float3(fy + chroma.x / 500.0f, fy, fy - chroma.y / 200.0f);
