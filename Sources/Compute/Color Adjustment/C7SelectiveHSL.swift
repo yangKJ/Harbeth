@@ -156,6 +156,23 @@ public struct C7SelectiveHSL: C7FilterProtocol {
         public let cyanEdges: SIMD2<Float>
         /// 在较低亮度收紧色度渐退边界，达到完整亮度时回到原边界。
         public let lowerToneChromaScale: Float
+        public let upperToneExpansion: UpperToneExpansion?
+
+        /// 在更亮的区域扩展色度渐退，单独控制新增绿通道增益。
+        public struct UpperToneExpansion: Equatable, Sendable {
+            public let greenEdges: SIMD2<Float>
+            public let chromaFadeOffsets: SIMD2<Float>
+            public let greenAmount: Float
+
+            public init?(greenEdges: SIMD2<Float>, chromaFadeOffsets: SIMD2<Float>, greenAmount: Float) {
+                guard greenEdges.x >= 0, greenEdges.x < greenEdges.y, greenEdges.y <= 1,
+                      chromaFadeOffsets.x >= 0, chromaFadeOffsets.x <= chromaFadeOffsets.y,
+                      chromaFadeOffsets.y <= 1, (0...1).contains(greenAmount) else { return nil }
+                self.greenEdges = greenEdges
+                self.chromaFadeOffsets = chromaFadeOffsets
+                self.greenAmount = greenAmount
+            }
+        }
 
         public init?(
             amount: Float,
@@ -163,7 +180,8 @@ public struct C7SelectiveHSL: C7FilterProtocol {
             blueEdges: SIMD2<Float>,
             chromaEdges: SIMD4<Float>,
             cyanEdges: SIMD2<Float>,
-            lowerToneChromaScale: Float = 1
+            lowerToneChromaScale: Float = 1,
+            upperToneExpansion: UpperToneExpansion? = nil
         ) {
             let pairedEdges = [greenEdges, blueEdges, cyanEdges]
             guard (0...1).contains(amount),
@@ -171,7 +189,8 @@ public struct C7SelectiveHSL: C7FilterProtocol {
                   chromaEdges.x > 0, chromaEdges.x < chromaEdges.y,
                   chromaEdges.y <= chromaEdges.z, chromaEdges.z < chromaEdges.w, chromaEdges.w <= 1,
                   lowerToneChromaScale > 0, lowerToneChromaScale <= 1,
-                  chromaEdges.y <= chromaEdges.z * lowerToneChromaScale else {
+                  chromaEdges.y <= chromaEdges.z * lowerToneChromaScale,
+                  chromaEdges.w + (upperToneExpansion?.chromaFadeOffsets.y ?? 0) <= 1 else {
                 return nil
             }
             self.amount = amount
@@ -180,6 +199,7 @@ public struct C7SelectiveHSL: C7FilterProtocol {
             self.chromaEdges = chromaEdges
             self.cyanEdges = cyanEdges
             self.lowerToneChromaScale = lowerToneChromaScale
+            self.upperToneExpansion = upperToneExpansion
         }
     }
 
@@ -270,10 +290,17 @@ public struct C7SelectiveHSL: C7FilterProtocol {
             let strength = SIMD4(
                 highlight.cyanEdges.x, highlight.cyanEdges.y, highlight.amount, highlight.lowerToneChromaScale
             )
+            let upper = highlight.upperToneExpansion
+            let expansion = SIMD4(
+                upper?.greenEdges.x ?? 0, upper?.greenEdges.y ?? 0,
+                upper?.chromaFadeOffsets.x ?? 0, upper?.chromaFadeOffsets.y ?? 0
+            )
             bindings += [
                 .init(name: "highlightToneEdges", index: 6, stage: .compute, value: .float4(tone)),
                 .init(name: "highlightChromaEdges", index: 7, stage: .compute, value: .float4(highlight.chromaEdges)),
                 .init(name: "highlightCyanAndAmount", index: 8, stage: .compute, value: .float4(strength)),
+                .init(name: "highlightUpperTone", index: 9, stage: .compute, value: .float4(expansion)),
+                .init(name: "highlightUpperGreenAmount", index: 10, stage: .compute, value: .float(upper?.greenAmount ?? 1)),
             ]
         }
         if response == .photographicNeutral, let lab = labColorWindow {

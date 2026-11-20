@@ -194,22 +194,34 @@ kernel void C7SelectiveHSLPhotographicNeutralColorWindow(texture2d<half, access:
     outputTexture.write(half4(half3(color * alpha), input.a), grid);
 }
 
-static float3 neutralizeCoolHighlights(float3 source, float4 tone, float4 chroma, float4 cyanAndAmount) {
+static float3 neutralizeCoolHighlights(float3 source, float4 tone, float4 chroma, float4 cyanAndAmount,
+                                       float4 upperTone, float upperGreenAmount) {
     const float3 bounded = clamp(source, 0.0f, 1.0f);
     const float span = bounded.b - bounded.r;
-    if (bounded.g <= tone.x || bounded.b <= tone.z || span <= chroma.x || span >= chroma.w) return source;
+    if (bounded.g <= tone.x || bounded.b <= tone.z || span <= chroma.x || span >= chroma.w + upperTone.w) return source;
 
     const float cyan = (bounded.g - bounded.r) / span;
     if (cyan <= cyanAndAmount.x) return source;
     const float green = smoothstep(tone.x, tone.y, bounded.g);
     // 在较低亮度保护有意保留的浅青，随亮度回到原高光色度范围。
     const float chromaScale = mix(cyanAndAmount.w, 1.0f, green * green);
-    if (span >= chroma.w * chromaScale) return source;
-    const float weight = green * smoothstep(tone.z, tone.w, bounded.b) * smoothstep(chroma.x, chroma.y, span)
-        * (1.0f - smoothstep(chroma.z * chromaScale, chroma.w * chromaScale, span))
-        * smoothstep(cyanAndAmount.x, cyanAndAmount.y, cyan) * cyanAndAmount.z;
+    const float expansion = upperTone.w > 0.0f && bounded.g > upperTone.x
+        ? smoothstep(upperTone.x, upperTone.y, bounded.g) : 0.0f;
+    const float fadeStart = chroma.z * chromaScale;
+    const float fadeEnd = chroma.w * chromaScale;
+    const float upperEnd = fadeEnd + upperTone.w * expansion;
+    if (span >= upperEnd) return source;
+    const float lowerRamp = green * smoothstep(tone.z, tone.w, bounded.b) * smoothstep(chroma.x, chroma.y, span);
+    const float hueWeight = smoothstep(cyanAndAmount.x, cyanAndAmount.y, cyan);
+    const float fade = smoothstep(fadeStart, fadeEnd, span);
+    const float weight = lowerRamp * (1.0f - fade) * hueWeight * cyanAndAmount.z;
     // 仅增加较低通道，保留蓝通道及原有扩展高光。
-    return source + weight * max(bounded.b - bounded, 0.0f);
+    const float3 channels = max(bounded.b - bounded, 0.0f);
+    const float3 adjusted = source + weight * channels;
+    if (expansion <= 0.0f || fade <= 0.0f) return adjusted;
+    const float upperFade = smoothstep(fadeStart + upperTone.z * expansion, upperEnd, span);
+    const float added = lowerRamp * max(0.0f, fade - upperFade) * hueWeight * cyanAndAmount.z;
+    return adjusted + added * channels * float3(1.0f, upperGreenAmount, 0.0f);
 }
 
 kernel void C7SelectiveHSLPhotographicHighlights(texture2d<half, access::write> outputTexture [[texture(0)]],
@@ -223,6 +235,8 @@ kernel void C7SelectiveHSLPhotographicHighlights(texture2d<half, access::write> 
                                                 constant float4 &highlightToneEdges [[buffer(6)]],
                                                 constant float4 &highlightChromaEdges [[buffer(7)]],
                                                 constant float4 &highlightCyanAndAmount [[buffer(8)]],
+                                                constant float4 &highlightUpperTone [[buffer(9)]],
+                                                constant float &highlightUpperGreenAmount [[buffer(10)]],
                                                 uint2 grid [[thread_position_in_grid]]) {
     if (grid.x >= outputTexture.get_width() || grid.y >= outputTexture.get_height()) return;
     const half4 input = inputTexture.read(grid);
@@ -234,7 +248,8 @@ kernel void C7SelectiveHSLPhotographicHighlights(texture2d<half, access::write> 
     float3 color = selectiveHSLColor(float3(input.rgb) / alpha, adjustments, true);
     color = applySelectiveHSLColorWindow(color, hueEdges, colorAdjustment, windowTone);
     color = finishPhotographicNeutral(color, neutralShadows, neutralHighlights);
-    color = neutralizeCoolHighlights(color, highlightToneEdges, highlightChromaEdges, highlightCyanAndAmount);
+    color = neutralizeCoolHighlights(color, highlightToneEdges, highlightChromaEdges, highlightCyanAndAmount,
+                                     highlightUpperTone, highlightUpperGreenAmount);
     outputTexture.write(half4(half3(color * alpha), input.a), grid);
 }
 
