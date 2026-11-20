@@ -315,7 +315,7 @@ static float3 applyLabColorWindow(float3 rgb, float4 hueEdges, float4 edges, flo
 }
 
 static float3 applyLabCorrections(float3 rgb, constant float *parameters) {
-    const uint count = min(uint(parameters[0]), 6u);
+    const uint count = min(uint(parameters[0]), 9u);
     if (count == 0 || !all(isfinite(rgb)) || any(rgb > 1.0f)) return rgb;
     // 以可显示颜色选择窗口。仅对命中的负通道做色域映射，扩展高光继续透传。
     const float3 bounded = max(rgb, 0.0f);

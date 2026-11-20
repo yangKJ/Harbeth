@@ -68,7 +68,7 @@ public struct C7SelectiveHSL: C7FilterProtocol {
 
     /// 对显示色域内指定的色相与色度区间，分别校正 Lab 明度、色度和色相。
     public struct LabColorCorrection: Codable, Hashable, Sendable {
-        public static let maximumCount = 6
+        public static let maximumCount = 9
 
         public let hueEdges: SIMD4<Float>
         public let chromaEdges: SIMD2<Float>
