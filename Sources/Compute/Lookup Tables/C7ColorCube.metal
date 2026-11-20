@@ -92,9 +92,13 @@ kernel void C7ColorCube(texture2d<float, access::write> outputTexture [[texture(
         outputTexture.write(cubeOutputColor(input, halfOutput), grid);
         return;
     }
-    const float3 normalized = float3(cubeNormalize(inputRGB.r, domainMinimum.r, domainMaximum.r),
-                                     cubeNormalize(inputRGB.g, domainMinimum.g, domainMaximum.g),
-                                     cubeNormalize(inputRGB.b, domainMinimum.b, domainMaximum.b));
+    const bool unitDomain = all(domainMinimum == float3(0.0f)) && all(domainMaximum == float3(1.0f));
+    // 单位输入域只需钳制，同时保留通用归一化对负零的处理。
+    const float3 normalized = unitDomain
+        ? select(clamp(inputRGB, 0.0f, 1.0f), float3(0.0f), inputRGB <= 0.0f)
+        : float3(cubeNormalize(inputRGB.r, domainMinimum.r, domainMaximum.r),
+                 cubeNormalize(inputRGB.g, domainMinimum.g, domainMaximum.g),
+                 cubeNormalize(inputRGB.b, domainMinimum.b, domainMaximum.b));
     const int dimension = int(lutTexture.get_width());
     const float3 scaled = normalized * float(dimension - 1);
     const int3 base = int3(floor(scaled));

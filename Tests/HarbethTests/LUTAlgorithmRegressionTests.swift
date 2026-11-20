@@ -287,7 +287,7 @@ final class LUTAlgorithmRegressionTests: XCTestCase {
     }
 }
 
-private final class TextureCollector: @unchecked Sendable {
+final class TextureCollector: @unchecked Sendable {
     private let lock = NSLock()
     private var textures: [MTLTexture] = []
     func append(_ texture: MTLTexture?) {

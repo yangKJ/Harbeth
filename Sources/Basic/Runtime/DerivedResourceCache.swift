@@ -80,7 +80,7 @@ final class DerivedResourceStore: @unchecked Sendable {
     private var newest: Entry?
     private var byteCount = 0
     private var scopeGenerations: [Scope: UInt64] = [:]
-    private var textureCreations: [DerivedResourceIdentity: DerivedTextureCreation] = [:]
+    private var creations: [DerivedResourceIdentity: DerivedResourceCreation] = [:]
     private var nextGeneration: UInt64 = 1
     private var hitCount = 0
     private var missCount = 0
@@ -96,30 +96,40 @@ final class DerivedResourceStore: @unchecked Sendable {
     }
 
     func texture(for identity: DerivedResourceIdentity, create: () throws -> MTLTexture) throws -> MTLTexture {
-        let key = identity
+        try object(for: identity, byteCost: { $0.allocatedSize }, create: create)
+    }
+
+    func object<Value: AnyObject>(
+        for identity: DerivedResourceIdentity,
+        byteCost: (Value) -> Int,
+        create: () throws -> Value
+    ) throws -> Value {
         lock.lock()
         let scope = Scope(domain: identity.domain, namespace: identity.namespace)
-        if generation(for: scope) == identity.generation, let entry = entries[key], let texture = entry.value as? MTLTexture {
+        if generation(for: scope) == identity.generation, let entry = entries[identity], let value = entry.value as? Value {
             hitCount += 1
             touch(entry)
             lock.unlock()
-            return texture
+            return value
         }
         missCount += 1
-        if let pending = textureCreations[identity] {
+        if let pending = creations[identity] {
             lock.unlock()
-            return try pending.wait()
+            guard let value = try pending.wait() as? Value else {
+                throw HarbethError.configurationInvalid("Derived resource type does not match its cache identity.")
+            }
+            return value
         }
-        let pending = DerivedTextureCreation()
-        textureCreations[identity] = pending
+        let pending = DerivedResourceCreation()
+        creations[identity] = pending
         lock.unlock()
         let result = Result { try create() }
-        if case .success(let texture) = result {
-            insert(texture as AnyObject, byteCost: max(texture.allocatedSize, 1), for: identity)
+        if case .success(let value) = result {
+            insert(value, byteCost: byteCost(value), for: identity)
         }
-        pending.complete(result)
+        pending.complete(result.map { $0 as AnyObject })
         lock.lock()
-        textureCreations.removeValue(forKey: identity)
+        creations.removeValue(forKey: identity)
         lock.unlock()
         return try result.get()
     }
@@ -293,21 +303,21 @@ final class DerivedResourceStore: @unchecked Sendable {
 
 }
 
-private final class DerivedTextureCreation: @unchecked Sendable {
+private final class DerivedResourceCreation: @unchecked Sendable {
     private let condition = NSCondition()
     private let owner = Thread.current
-    private var result: Result<MTLTexture, Error>?
+    private var result: Result<AnyObject, Error>?
 
-    func complete(_ result: Result<MTLTexture, Error>) {
+    func complete(_ result: Result<AnyObject, Error>) {
         condition.lock()
         self.result = result
         condition.broadcast()
         condition.unlock()
     }
 
-    func wait() throws -> MTLTexture {
+    func wait() throws -> AnyObject {
         guard Thread.current !== owner else {
-            throw HarbethError.configurationInvalid("A derived texture cannot recursively await its own creation.")
+            throw HarbethError.configurationInvalid("A derived resource cannot recursively await its own creation.")
         }
         condition.lock()
         while result == nil { condition.wait() }

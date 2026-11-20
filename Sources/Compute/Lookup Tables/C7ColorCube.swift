@@ -9,6 +9,7 @@ import Foundation
 import MetalKit
 import Compression
 import CryptoKit
+import Darwin
 
 /// 3D LUT颜色立方体滤镜
 /// 使用Metal实现的CUBE文件格式LUT滤镜
@@ -92,16 +93,16 @@ public struct C7ColorCube: C7FilterPipelineProtocol {
     }
     
     private var lutTexture: MTLTexture?
-    private var dimension: Int
-    private var domainMinimum: SIMD3<Float>
-    private var domainMaximum: SIMD3<Float>
-    
+    private var domainMinimum: SIMD3<Float> = .zero
+    private var domainMaximum: SIMD3<Float> = SIMD3<Float>(repeating: 1)
+
     public init(cubeName: String, bundle: Bundle = .main, intensity: Float = 1.0, interpolation: Interpolation = .tetrahedral, domainPolicy: DomainPolicy = .clampToDomain) {
-        let resolution = C7ColorCube.Resource.resolveNamedResource(cubeName, bundle: bundle)
-        self.init(cubeResource: resolution.resource, intensity: intensity, interpolation: interpolation, domainPolicy: domainPolicy)
+        self.init(cubeResource: nil, intensity: intensity, interpolation: interpolation, domainPolicy: domainPolicy)
         self.resourceName = cubeName
         self.resourceBundleName = bundle.bundleURL.deletingPathExtension().lastPathComponent
-        self.resourceLoadError = resolution.error ?? self.resourceLoadError
+        if let file = Resource.namedFile(cubeName, bundle: bundle) {
+            loadFile(at: file.url, compact: file.compact)
+        }
     }
 
     public init(cubeName: String, forResource resource: String, intensity: Float = 1.0, interpolation: Interpolation = .tetrahedral) {
@@ -112,13 +113,10 @@ public struct C7ColorCube: C7FilterPipelineProtocol {
     }
     
     public init(cubeURL: URL, intensity: Float = 1.0, interpolation: Interpolation = .tetrahedral, domainPolicy: DomainPolicy = .clampToDomain) {
-        let resource = C7ColorCube.Resource.readCubeResource(from: cubeURL)
-        self.init(cubeResource: resource, intensity: intensity, interpolation: interpolation, domainPolicy: domainPolicy)
-        self.resourceName = nil
-        self.resourceBundleName = nil
-        if resource == nil { self.resourceLoadError = .cubeResource }
+        self.init(cubeResource: nil, intensity: intensity, interpolation: interpolation, domainPolicy: domainPolicy)
+        loadFile(at: cubeURL, compact: false)
     }
-    
+
     public init(cubeData: Data, dimension: Int, intensity: Float = 1.0, interpolation: Interpolation = .tetrahedral, domainPolicy: DomainPolicy = .clampToDomain) {
         let resource = C7ColorCube.Resource(dimension: dimension, data: cubeData)
         self.init(cubeResource: resource, intensity: intensity, interpolation: interpolation, domainPolicy: domainPolicy)
@@ -130,29 +128,37 @@ public struct C7ColorCube: C7FilterPipelineProtocol {
         self.intensity = intensity
         self.interpolation = interpolation
         self.domainPolicy = domainPolicy
-        self.resourceIdentity = cubeResource?.identity
-        self.resourceName = nil
-        self.resourceBundleName = nil
-        self.resourceLoadError = nil
-        if let resource = cubeResource {
-            self.dimension = resource.dimension
-            self.domainMinimum = resource.domainMinimum
-            self.domainMaximum = resource.domainMaximum
-            do {
-                self.lutTexture = try C7ColorCube.Resource.createLUTTexture(from: resource)
-            } catch {
-                self.lutTexture = nil
-                self.resourceIdentity = nil
-                self.resourceLoadError = error as? HarbethError ?? .error(error)
-            }
-        } else {
-            self.dimension = 0
-            self.domainMinimum = .zero
-            self.domainMaximum = SIMD3<Float>(repeating: 1)
-            self.lutTexture = nil
+        setResource(cubeResource)
+    }
+
+    private mutating func loadFile(at url: URL, compact: Bool) {
+        do {
+            let prepared = try PreparedColorCube.load(from: url, compact: compact)
+            lutTexture = prepared.texture
+            resourceIdentity = prepared.identity
+            domainMinimum = prepared.domainMinimum
+            domainMaximum = prepared.domainMaximum
+        } catch {
+            resourceLoadError = error as? HarbethError ?? .error(error)
         }
     }
-    
+
+    private mutating func setResource(_ resource: Resource?) {
+        resourceIdentity = resource?.identity
+        domainMinimum = resource?.domainMinimum ?? .zero
+        domainMaximum = resource?.domainMaximum ?? SIMD3<Float>(repeating: 1)
+        lutTexture = nil
+        resourceLoadError = nil
+        if let resource {
+            do {
+                lutTexture = try Resource.createLUTTexture(from: resource)
+            } catch {
+                resourceIdentity = nil
+                resourceLoadError = error as? HarbethError ?? .error(error)
+            }
+        }
+    }
+
     public func updateIntensity(_ intensity: CGFloat) -> Self {
         var copy = self
         copy.intensity = Float(intensity)
@@ -161,26 +167,7 @@ public struct C7ColorCube: C7FilterPipelineProtocol {
     
     public func updateCubeResource(_ cubeResource: C7ColorCube.Resource?) -> Self {
         var copy = self
-        copy.resourceLoadError = nil
-        if let resource = cubeResource {
-            copy.dimension = resource.dimension
-            copy.resourceIdentity = resource.identity
-            copy.domainMinimum = resource.domainMinimum
-            copy.domainMaximum = resource.domainMaximum
-            do {
-                copy.lutTexture = try C7ColorCube.Resource.createLUTTexture(from: resource)
-            } catch {
-                copy.lutTexture = nil
-                copy.resourceIdentity = nil
-                copy.resourceLoadError = error as? HarbethError ?? .error(error)
-            }
-        } else {
-            copy.dimension = 0
-            copy.resourceIdentity = nil
-            copy.domainMinimum = .zero
-            copy.domainMaximum = SIMD3<Float>(repeating: 1)
-            copy.lutTexture = nil
-        }
+        copy.setResource(cubeResource)
         return copy
     }
 
@@ -230,12 +217,51 @@ private struct ColorCubeResourceFailure: BlitProtocol {
     }
 }
 
-extension C7ColorCube.Resource {
-    struct NamedResourceResolution {
-        let resource: C7ColorCube.Resource?
-        let error: HarbethError?
+private final class PreparedColorCube {
+    let texture: MTLTexture
+    let identity: String
+    let domainMinimum: SIMD3<Float>
+    let domainMaximum: SIMD3<Float>
+
+    private init(resource: C7ColorCube.Resource, device: MTLDevice) throws {
+        texture = try C7ColorCube.Resource.uploadLUTTexture(from: resource, device: device)
+        identity = resource.identity
+        domainMinimum = resource.domainMinimum
+        domainMaximum = resource.domainMaximum
     }
 
+    static func load(from url: URL, compact: Bool) throws -> PreparedColorCube {
+        let context = HarbethContext.shared
+        func prepare() throws -> PreparedColorCube {
+            let resource = try C7ColorCube.Resource.readFile(at: url, compact: compact)
+            return try PreparedColorCube(resource: resource, device: context.device)
+        }
+
+        // 文件版本改变后，重放必须重新读取，失败结果也不能阻止后续导入。
+        guard let fingerprint = fileFingerprint(url, compact: compact) else { return try prepare() }
+        let identity = context.makeDerivedResourceIdentity(
+            domain: .lookupTable,
+            namespace: "harbeth.lookup-table",
+            fingerprint: fingerprint
+        )
+        return try context.derivedResourceStore.object(for: identity, byteCost: { $0.texture.allocatedSize }, create: prepare)
+    }
+
+    private static func fileFingerprint(_ url: URL, compact: Bool) -> String? {
+        let file = url.standardizedFileURL
+        var info = stat()
+        let status = file.withUnsafeFileSystemRepresentation { path -> Int32 in
+            guard let path else { return -1 }
+            return fstatat(AT_FDCWD, path, &info, 0)
+        }
+        guard status == 0 else { return nil }
+        return "\(compact)|\(info.st_dev)|\(info.st_ino)|\(info.st_size)|"
+            + "\(info.st_mtimespec.tv_sec).\(info.st_mtimespec.tv_nsec)|"
+            + "\(info.st_ctimespec.tv_sec).\(info.st_ctimespec.tv_nsec)|\(file.path)"
+    }
+}
+
+extension C7ColorCube.Resource {
     static func readCubeResource(from url: URL) -> C7ColorCube.Resource? {
         guard let contents = try? String(contentsOf: url, encoding: .utf8) else { return nil }
         return try? parse(contents: contents)
@@ -250,30 +276,35 @@ extension C7ColorCube.Resource {
             fingerprint: resource.identity
         )
         return try context.makeDerivedTexture(for: cacheIdentity) {
-            let descriptor = MTLTextureDescriptor()
-            descriptor.textureType = .type3D
-            descriptor.pixelFormat = .rgba32Float
-            descriptor.width = resource.dimension
-            descriptor.height = resource.dimension
-            descriptor.depth = resource.dimension
-            descriptor.mipmapLevelCount = 1
-            descriptor.usage = [.shaderRead]
-            descriptor.storageMode = .shared
-            descriptor.cpuCacheMode = .writeCombined
-            guard let texture = context.device.makeTexture(descriptor: descriptor) else { throw HarbethError.makeTexture }
-            let bytesPerRow = resource.dimension * 4 * MemoryLayout<Float>.size
-            resource.data.withUnsafeBytes { bytes in
-                texture.replace(
-                    region: MTLRegionMake3D(0, 0, 0, resource.dimension, resource.dimension, resource.dimension),
-                    mipmapLevel: 0,
-                    slice: 0,
-                    withBytes: bytes.baseAddress!,
-                    bytesPerRow: bytesPerRow,
-                    bytesPerImage: resource.dimension * bytesPerRow
-                )
-            }
-            return texture
+            try uploadLUTTexture(from: resource, device: context.device)
         }
+    }
+
+    fileprivate static func uploadLUTTexture(from resource: C7ColorCube.Resource, device: MTLDevice) throws -> MTLTexture {
+        guard resource.isValid else { throw HarbethError.cubeResource }
+        let descriptor = MTLTextureDescriptor()
+        descriptor.textureType = .type3D
+        descriptor.pixelFormat = .rgba32Float
+        descriptor.width = resource.dimension
+        descriptor.height = resource.dimension
+        descriptor.depth = resource.dimension
+        descriptor.mipmapLevelCount = 1
+        descriptor.usage = [.shaderRead]
+        descriptor.storageMode = .shared
+        descriptor.cpuCacheMode = .writeCombined
+        guard let texture = device.makeTexture(descriptor: descriptor) else { throw HarbethError.makeTexture }
+        let bytesPerRow = resource.dimension * 4 * MemoryLayout<Float>.size
+        resource.data.withUnsafeBytes { bytes in
+            texture.replace(
+                region: MTLRegionMake3D(0, 0, 0, resource.dimension, resource.dimension, resource.dimension),
+                mipmapLevel: 0,
+                slice: 0,
+                withBytes: bytes.baseAddress!,
+                bytesPerRow: bytesPerRow,
+                bytesPerImage: resource.dimension * bytesPerRow
+            )
+        }
+        return texture
     }
 
     /// Read Cube file resources.
@@ -282,26 +313,23 @@ extension C7ColorCube.Resource {
     ///   - bundle: Bundle that contains the cube resource.
     /// - Returns: Cube resource
     public static func readCubeResource(_ name: String, bundle: Bundle = .main) -> C7ColorCube.Resource? {
-        resolveNamedResource(name, bundle: bundle).resource
+        guard let file = namedFile(name, bundle: bundle) else { return nil }
+        return try? readFile(at: file.url, compact: file.compact)
     }
 
-    static func resolveNamedResource(_ name: String, bundle: Bundle) -> NamedResourceResolution {
-        let compactPaths = ["hlut", "HLUT"].compactMap { bundle.url(forResource: name, withExtension: $0) }
-        if let compactURL = compactPaths.first {
-            switch loadCompactResource(from: compactURL) {
-            case .success(let resource):
-                return NamedResourceResolution(resource: resource, error: nil)
-            case .failure(let error):
-                return NamedResourceResolution(resource: nil, error: error)
+    fileprivate static func namedFile(_ name: String, bundle: Bundle) -> (url: URL, compact: Bool)? {
+        for ext in ["hlut", "HLUT", "cube", "CUBE"] {
+            if let url = bundle.url(forResource: name, withExtension: ext) {
+                return (url, ext.lowercased() == "hlut")
             }
         }
-        let paths = ["cube", "CUBE"].compactMap {
-            bundle.path(forResource: name, ofType: $0)
-        }
-        guard let path = paths.first, let contents = try? String(contentsOfFile: path, encoding: .utf8) else {
-            return NamedResourceResolution(resource: nil, error: nil)
-        }
-        return NamedResourceResolution(resource: try? parse(contents: contents), error: nil)
+        return nil
+    }
+
+    fileprivate static func readFile(at url: URL, compact: Bool) throws -> C7ColorCube.Resource {
+        if compact { return try readCompactResourceStrict(from: url) }
+        guard let resource = readCubeResource(from: url) else { throw HarbethError.cubeResource }
+        return resource
     }
 
     /// 读取 Harbeth 紧凑 3D LUT 资源。格式包含版本、维度、domain、LZFSE 压缩的 RGBA Float32 样本与 SHA-256 校验值。
@@ -425,7 +453,7 @@ private extension C7ColorCube.Resource {
         guard encoded.count >= compactHeaderLength else {
             throw HarbethError.cubeCompactResourceFailed(reason: "invalidHeader")
         }
-        let bytes = [UInt8](encoded)
+        let bytes = [UInt8](encoded.prefix(compactHeaderLength))
         guard Array(bytes[0..<4]) == compactMagic,
               bytes[4] == compactVersion, bytes[5] == 1,
               let encodedDimension = integer(UInt16.self, bytes: bytes, at: 6),
@@ -472,13 +500,9 @@ private extension C7ColorCube.Resource {
         guard Data(SHA256.hash(data: decoded)) == expectedChecksum else {
             throw HarbethError.cubeCompactResourceFailed(reason: "checksumMismatch")
         }
-        let values = decoded.withUnsafeBytes { buffer in
-            Array(buffer.bindMemory(to: Float.self))
-        }
-        guard values.allSatisfy(\.isFinite) else {
-            throw HarbethError.cubeCompactResourceFailed(reason: "invalidPayload")
-        }
-        return C7ColorCube.Resource(dimension: dimension, data: decoded, domainMinimum: domainMinimum, domainMaximum: domainMaximum)
+        let resource = C7ColorCube.Resource(dimension: dimension, data: decoded, domainMinimum: domainMinimum, domainMaximum: domainMaximum)
+        guard resource.isValid else { throw HarbethError.cubeCompactResourceFailed(reason: "invalidPayload") }
+        return resource
     }
 
     static func vector(bytes: [UInt8], at offset: Int) -> SIMD3<Float>? {

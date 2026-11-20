@@ -64,6 +64,53 @@ final class ColorCubeTests: XCTestCase {
         XCTAssertEqual(first.kernelResourceIdentity, resource.identity)
     }
 
+    func testFileBackedCubeRefreshesAfterReplacementAndRetriesAfterFailure() throws {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString).appendingPathExtension("cube")
+        defer { try? FileManager.default.removeItem(at: url) }
+
+        XCTAssertNotNil(C7ColorCube(cubeURL: url).resourceLoadError)
+        try unitIdentityCube.write(to: url, atomically: true, encoding: .utf8)
+        let first = C7ColorCube(cubeURL: url, intensity: 0.25)
+        let reused = C7ColorCube(cubeURL: url, intensity: 0.75)
+        let firstTexture = try XCTUnwrap(first.otherInputTextures.first)
+        XCTAssertTrue(firstTexture === reused.otherInputTextures.first)
+        XCTAssertEqual(reused.intensity, 0.75)
+        XCTAssertEqual(first.resourceIdentity, reused.resourceIdentity)
+
+        try identityCube.write(to: url, atomically: true, encoding: .utf8)
+        let changed = C7ColorCube(cubeURL: url)
+        XCTAssertNotNil(changed.otherInputTextures.first)
+        XCTAssertNotEqual(changed.resourceIdentity, first.resourceIdentity)
+        XCTAssertFalse(firstTexture === changed.otherInputTextures.first)
+    }
+
+    func testNamedCubeCoalescesConcurrentPreparationAndCanBeInvalidated() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let bundleURL = directory.appendingPathExtension("bundle")
+        defer { try? FileManager.default.removeItem(at: bundleURL) }
+        try FileManager.default.createDirectory(at: bundleURL, withIntermediateDirectories: true)
+        try "<?xml version=\"1.0\" encoding=\"UTF-8\"?><plist version=\"1.0\"><dict><key>CFBundleIdentifier</key><string>tests.named.cube</string></dict></plist>"
+            .write(to: bundleURL.appendingPathComponent("Info.plist"), atomically: true, encoding: .utf8)
+        let cube = try C7ColorCube.Resource.parse(contents: unitIdentityCube)
+        try compactLookupData(from: cube).write(to: bundleURL.appendingPathComponent("identity.hlut"))
+        let bundle = try XCTUnwrap(Bundle(path: bundleURL.path))
+        let textures = TextureCollector()
+        DispatchQueue.concurrentPerform(iterations: 8) { _ in
+            let filter = C7ColorCube(cubeName: "identity", bundle: bundle)
+            textures.append(filter.otherInputTextures.first)
+        }
+        let results = textures.values
+        let first = try XCTUnwrap(results.first)
+        XCTAssertEqual(results.count, 8)
+        XCTAssertTrue(results.allSatisfy { $0 === first })
+
+        HarbethContext.shared.invalidateDerivedResources(domain: .lookupTable, namespace: "harbeth.lookup-table")
+        let reloaded = C7ColorCube(cubeName: "identity", bundle: bundle)
+        XCTAssertEqual(reloaded.resourceIdentity, cube.identity)
+        XCTAssertNotNil(reloaded.otherInputTextures.first)
+        XCTAssertFalse(reloaded.otherInputTextures.first === first)
+    }
+
     func testCubeResourceIdentityParticipatesInRenderRecipeFingerprint() throws {
         let identity = try C7ColorCube.Resource.parse(contents: unitIdentityCube)
         let inverted = try C7ColorCube.Resource.parse(contents: unitIdentityCube.replacingOccurrences(of: "1 0 0", with: "0 1 1"))
