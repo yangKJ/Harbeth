@@ -74,55 +74,29 @@ public struct C7ColorCube: C7FilterPipelineProtocol {
 
     public var kernelResourceIdentity: String? { resourceIdentity }
 
-    public var usesAtomReplacement: Bool { replacement != nil }
+    public var pipelineFilters: [C7FilterProtocol] { [] }
 
-    public var pipelineFilters: [C7FilterProtocol] {
-        guard let replacement, replacement.fusedAtoms == nil else { return [] }
-        return [ColorCubeReplacementPrepare()] + replacement.filters
-    }
-
-    public var pipelineOtherInputCount: Int {
-        guard let replacement else { return otherInputTextures.count }
-        return replacement.fusedAtoms == nil ? 1 : 0
-    }
+    public var pipelineOtherInputCount: Int { otherInputTextures.count }
 
     public func makeFinalFilter(otherInputTextures: C7InputTextures?) -> C7FilterProtocol? {
         if let resourceLoadError { return ColorCubeResourceFailure(error: resourceLoadError, kernelParameterBindings: kernelParameterBindings) }
-        if replacement == nil && lutTexture == nil { return ColorCubeResourceFailure(error: .cubeResource, kernelParameterBindings: kernelParameterBindings) }
-        if var fused = replacement?.fusedAtoms {
-            fused.intensity = intensity
-            fused.domainPolicy = domainPolicy
-            return fused
-        }
-        if replacement != nil {
-            return ColorCubeReplacementMix(intensity: intensity, domainPolicy: domainPolicy, inputs: otherInputTextures ?? [])
-        }
+        if lutTexture == nil { return ColorCubeResourceFailure(error: .cubeResource, kernelParameterBindings: kernelParameterBindings) }
         return ColorCubeKernel(bindings: kernelParameterBindings, inputs: self.otherInputTextures,
             identity: resourceIdentity, pixelContract: kernelPixelContract)
     }
 
     public var kernelPixelContract: KernelPixelContract {
-        KernelPixelContract(precision: replacement == nil ? .float32 : .float16,
+        KernelPixelContract(precision: .float32,
             dynamicRangeBehavior: domainPolicy == .preserveOutsideDomain ? .preservesExtendedRange : .unspecified,
             samplingFootprint: .point)
     }
     
-    private var replacement: ColorCubeReplacement?
     private var lutTexture: MTLTexture?
     private var dimension: Int
     private var domainMinimum: SIMD3<Float>
     private var domainMaximum: SIMD3<Float>
     
     public init(cubeName: String, bundle: Bundle = .main, intensity: Float = 1.0, interpolation: Interpolation = .tetrahedral, domainPolicy: DomainPolicy = .clampToDomain) {
-        let owner = bundle.bundleURL.deletingPathExtension().lastPathComponent
-        if let replacement = HarbethContext.shared.colorCubeReplacements.replacement(resourceName: cubeName, resourceOwner: owner) {
-            self.init(cubeResource: nil, intensity: intensity, interpolation: interpolation, domainPolicy: domainPolicy)
-            self.replacement = replacement
-            self.resourceName = cubeName
-            self.resourceBundleName = owner
-            self.resourceIdentity = "\(owner)/\(cubeName):" + replacement.fingerprint
-            return
-        }
         let resolution = C7ColorCube.Resource.resolveNamedResource(cubeName, bundle: bundle)
         self.init(cubeResource: resolution.resource, intensity: intensity, interpolation: interpolation, domainPolicy: domainPolicy)
         self.resourceName = cubeName
@@ -131,14 +105,6 @@ public struct C7ColorCube: C7FilterPipelineProtocol {
     }
 
     public init(cubeName: String, forResource resource: String, intensity: Float = 1.0, interpolation: Interpolation = .tetrahedral) {
-        if let replacement = HarbethContext.shared.colorCubeReplacements.replacement(resourceName: cubeName, resourceOwner: resource) {
-            self.init(cubeResource: nil, intensity: intensity, interpolation: interpolation)
-            self.replacement = replacement
-            self.resourceName = cubeName
-            self.resourceBundleName = resource
-            self.resourceIdentity = "\(resource)/\(cubeName):" + replacement.fingerprint
-            return
-        }
         let bundle = R.readFrameworkBundle(with: resource) ?? .main
         self.init(cubeName: cubeName, bundle: bundle, intensity: intensity, interpolation: interpolation)
         self.resourceName = cubeName
@@ -161,7 +127,6 @@ public struct C7ColorCube: C7FilterPipelineProtocol {
     }
     
     public init(cubeResource: C7ColorCube.Resource?, intensity: Float = 1.0, interpolation: Interpolation = .tetrahedral, domainPolicy: DomainPolicy = .clampToDomain) {
-        self.replacement = nil
         self.intensity = intensity
         self.interpolation = interpolation
         self.domainPolicy = domainPolicy
@@ -197,11 +162,6 @@ public struct C7ColorCube: C7FilterPipelineProtocol {
     public func updateCubeResource(_ cubeResource: C7ColorCube.Resource?) -> Self {
         var copy = self
         copy.resourceLoadError = nil
-        if copy.replacement != nil {
-            copy.resourceName = nil
-            copy.resourceBundleName = nil
-        }
-        copy.replacement = nil
         if let resource = cubeResource {
             copy.dimension = resource.dimension
             copy.resourceIdentity = resource.identity
@@ -231,7 +191,7 @@ public struct C7ColorCube: C7FilterPipelineProtocol {
 
     private func validateResource() throws {
         if let resourceLoadError { throw resourceLoadError }
-        guard replacement != nil || lutTexture != nil else { throw HarbethError.cubeResource }
+        guard lutTexture != nil else { throw HarbethError.cubeResource }
     }
 
     public func updateInterpolation(_ interpolation: Interpolation) -> Self {
@@ -245,6 +205,20 @@ public struct C7ColorCube: C7FilterPipelineProtocol {
         copy.domainPolicy = policy
         return copy
     }
+}
+
+/// 以单个查表内核执行，避免滤镜管线递归调度自身。
+private struct ColorCubeKernel: C7FilterProtocol {
+    let bindings: [KernelParameterBinding]
+    let inputs: C7InputTextures
+    let identity: String?
+    let pixelContract: KernelPixelContract
+    var modifier: ModifierEnum { .compute(kernel: "C7ColorCube") }
+    var kernelParameterBindings: [KernelParameterBinding] { bindings }
+    var otherInputTextures: C7InputTextures { inputs }
+    var kernelResourceIdentity: String? { identity }
+    var kernelPixelContract: KernelPixelContract { pixelContract }
+    var memoryAccessPattern: MemoryAccessPattern { .dualTexture }
 }
 
 private struct ColorCubeResourceFailure: BlitProtocol {
