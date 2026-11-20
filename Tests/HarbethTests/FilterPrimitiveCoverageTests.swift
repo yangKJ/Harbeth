@@ -1115,6 +1115,38 @@ final class FilterPrimitiveCoverageTests: XCTestCase {
         }
     }
 
+    func testPhotographicHighlightsExtendOnlyForClippedBlue() throws {
+        let source = try makeRGBA16FloatTexture(width: 4, pixels: [
+            0.51, 0.815, 1.02, 1,
+            0.41, 0.775, 0.90, 1,
+            0.18, 0.42, 1, 1,
+            0.255, 0.4075, 0.51, 0.5,
+        ])
+        let render: (SIMD4<Float>?) throws -> [Float] = { clip in
+            let upper = try XCTUnwrap(C7SelectiveHSL.HighlightNeutralization.UpperToneExpansion(
+                greenEdges: SIMD2(0.69, 0.95), chromaFadeOffsets: SIMD2(0.14, 0.22),
+                greenAmount: 0.28, blueClipExpansion: clip
+            ))
+            let parameters = try XCTUnwrap(C7SelectiveHSL.HighlightNeutralization(
+                amount: 0.65, greenEdges: SIMD2(0.45, 0.91), blueEdges: SIMD2(0.58, 0.84),
+                chromaEdges: SIMD4(0.012, 0.065, 0.25, 0.42), cyanEdges: SIMD2(0.25, 0.51),
+                lowerToneChromaScale: 0.29, upperToneExpansion: upper
+            ))
+            let stage = C7SelectiveHSL(highlightNeutralization: parameters)
+            let result = try HarbethIO(element: source, filter: stage).renderTexture(profile: .exportQuality)
+            return try self.rgba16FloatPixels(in: result)
+        }
+        let original = try render(nil)
+        let fitted = try render(SIMD4(0.97, 0.998, 0.13, 0.30))
+        XCTAssertGreaterThan(fitted[0], original[0] + 0.12)
+        XCTAssertEqual(fitted[2], original[2])
+        XCTAssertEqual(fitted[3], original[3])
+        XCTAssertEqual(Array(fitted[4..<12]), Array(original[4..<12]))
+        for c in 0..<4 {
+            XCTAssertEqual(fitted[12 + c] * 2, fitted[c], accuracy: 0.002)
+        }
+    }
+
     func testPhotographicNeutralWindowFadesOutAtHighSaturation() throws {
         let hue = try XCTUnwrap(C7SelectiveHSL.HueWindow(
             hueEdges: SIMD4<Float>(184, 195, 212, 224),

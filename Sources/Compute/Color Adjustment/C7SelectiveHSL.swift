@@ -171,14 +171,26 @@ public struct C7SelectiveHSL: C7FilterProtocol {
             public let greenEdges: SIMD2<Float>
             public let chromaFadeOffsets: SIMD2<Float>
             public let greenAmount: Float
+            /// 前两项为蓝通道渐入边界，后两项为附加色度渐退偏移。
+            public let blueClipExpansion: SIMD4<Float>?
 
-            public init?(greenEdges: SIMD2<Float>, chromaFadeOffsets: SIMD2<Float>, greenAmount: Float) {
+            public init?(
+                greenEdges: SIMD2<Float>,
+                chromaFadeOffsets: SIMD2<Float>,
+                greenAmount: Float,
+                blueClipExpansion: SIMD4<Float>? = nil
+            ) {
                 guard greenEdges.x >= 0, greenEdges.x < greenEdges.y, greenEdges.y <= 1,
                       chromaFadeOffsets.x >= 0, chromaFadeOffsets.x <= chromaFadeOffsets.y,
                       chromaFadeOffsets.y <= 1, (0...1).contains(greenAmount) else { return nil }
+                if let clip = blueClipExpansion {
+                    guard clip.x >= 0, clip.x < clip.y, clip.y <= 1,
+                          clip.z >= 0, clip.z <= clip.w, clip.w <= 1 else { return nil }
+                }
                 self.greenEdges = greenEdges
                 self.chromaFadeOffsets = chromaFadeOffsets
                 self.greenAmount = greenAmount
+                self.blueClipExpansion = blueClipExpansion
             }
         }
 
@@ -198,7 +210,8 @@ public struct C7SelectiveHSL: C7FilterProtocol {
                   chromaEdges.y <= chromaEdges.z, chromaEdges.z < chromaEdges.w, chromaEdges.w <= 1,
                   lowerToneChromaScale > 0, lowerToneChromaScale <= 1,
                   chromaEdges.y <= chromaEdges.z * lowerToneChromaScale,
-                  chromaEdges.w + (upperToneExpansion?.chromaFadeOffsets.y ?? 0) <= 1 else {
+                  chromaEdges.w + (upperToneExpansion?.chromaFadeOffsets.y ?? 0)
+                    + (upperToneExpansion?.blueClipExpansion?.w ?? 0) <= 1 else {
                 return nil
             }
             self.amount = amount
@@ -309,6 +322,7 @@ public struct C7SelectiveHSL: C7FilterProtocol {
                 .init(name: "highlightCyanAndAmount", index: 8, stage: .compute, value: .float4(strength)),
                 .init(name: "highlightUpperTone", index: 9, stage: .compute, value: .float4(expansion)),
                 .init(name: "highlightUpperGreenAmount", index: 10, stage: .compute, value: .float(upper?.greenAmount ?? 1)),
+                .init(name: "highlightBlueClip", index: 11, stage: .compute, value: .float4(upper?.blueClipExpansion ?? .zero)),
             ]
         }
         if response == .photographicNeutral, let lab = labColorWindow {

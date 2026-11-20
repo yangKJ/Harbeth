@@ -195,10 +195,10 @@ kernel void C7SelectiveHSLPhotographicNeutralColorWindow(texture2d<half, access:
 }
 
 static float3 neutralizeCoolHighlights(float3 source, float4 tone, float4 chroma, float4 cyanAndAmount,
-                                       float4 upperTone, float upperGreenAmount) {
+                                       float4 upperTone, float upperGreenAmount, float4 blueClip) {
     const float3 bounded = clamp(source, 0.0f, 1.0f);
     const float span = bounded.b - bounded.r;
-    if (bounded.g <= tone.x || bounded.b <= tone.z || span <= chroma.x || span >= chroma.w + upperTone.w) return source;
+    if (bounded.g <= tone.x || bounded.b <= tone.z || span <= chroma.x || span >= chroma.w + upperTone.w + blueClip.w) return source;
 
     const float cyan = (bounded.g - bounded.r) / span;
     if (cyan <= cyanAndAmount.x) return source;
@@ -209,7 +209,11 @@ static float3 neutralizeCoolHighlights(float3 source, float4 tone, float4 chroma
         ? smoothstep(upperTone.x, upperTone.y, bounded.g) : 0.0f;
     const float fadeStart = chroma.z * chromaScale;
     const float fadeEnd = chroma.w * chromaScale;
-    const float upperEnd = fadeEnd + upperTone.w * expansion;
+    const float ordinaryUpperEnd = fadeEnd + upperTone.w * expansion;
+    const float clipped = blueClip.w > 0.0f && ordinaryUpperEnd > fadeEnd && bounded.b > blueClip.x && span > fadeEnd
+        ? green * smoothstep(blueClip.x, blueClip.y, bounded.b) * smoothstep(fadeEnd, ordinaryUpperEnd, span)
+        : 0.0f;
+    const float upperEnd = ordinaryUpperEnd + blueClip.w * clipped;
     if (span >= upperEnd) return source;
     const float lowerRamp = green * smoothstep(tone.z, tone.w, bounded.b) * smoothstep(chroma.x, chroma.y, span);
     const float hueWeight = smoothstep(cyanAndAmount.x, cyanAndAmount.y, cyan);
@@ -219,7 +223,8 @@ static float3 neutralizeCoolHighlights(float3 source, float4 tone, float4 chroma
     const float3 channels = max(bounded.b - bounded, 0.0f);
     const float3 adjusted = source + weight * channels;
     if (expansion <= 0.0f || fade <= 0.0f) return adjusted;
-    const float upperFade = smoothstep(fadeStart + upperTone.z * expansion, upperEnd, span);
+    const float upperStart = fadeStart + upperTone.z * expansion + blueClip.z * clipped;
+    const float upperFade = smoothstep(upperStart, upperEnd, span);
     const float added = lowerRamp * max(0.0f, fade - upperFade) * hueWeight * cyanAndAmount.z;
     return adjusted + added * channels * float3(1.0f, upperGreenAmount, 0.0f);
 }
@@ -237,6 +242,7 @@ kernel void C7SelectiveHSLPhotographicHighlights(texture2d<half, access::write> 
                                                 constant float4 &highlightCyanAndAmount [[buffer(8)]],
                                                 constant float4 &highlightUpperTone [[buffer(9)]],
                                                 constant float &highlightUpperGreenAmount [[buffer(10)]],
+                                                constant float4 &highlightBlueClip [[buffer(11)]],
                                                 uint2 grid [[thread_position_in_grid]]) {
     if (grid.x >= outputTexture.get_width() || grid.y >= outputTexture.get_height()) return;
     const half4 input = inputTexture.read(grid);
@@ -249,7 +255,7 @@ kernel void C7SelectiveHSLPhotographicHighlights(texture2d<half, access::write> 
     color = applySelectiveHSLColorWindow(color, hueEdges, colorAdjustment, windowTone);
     color = finishPhotographicNeutral(color, neutralShadows, neutralHighlights);
     color = neutralizeCoolHighlights(color, highlightToneEdges, highlightChromaEdges, highlightCyanAndAmount,
-                                     highlightUpperTone, highlightUpperGreenAmount);
+                                     highlightUpperTone, highlightUpperGreenAmount, highlightBlueClip);
     outputTexture.write(half4(half3(color * alpha), input.a), grid);
 }
 
