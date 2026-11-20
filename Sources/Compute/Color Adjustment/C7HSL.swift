@@ -37,9 +37,13 @@ public struct C7HSL: C7FilterProtocol {
     }
     
     public var kernelPixelContract: KernelPixelContract {
-        .init(inputAlphaExpectation: .premultiplied, precision: .float32,
-              dynamicRangeBehavior: factors.allSatisfy { $0 == 0 } ? .preservesExtendedRange : .clampsToUnitRange, samplingFootprint: .point)
+        .init(
+            inputAlphaExpectation: .premultiplied, precision: .float32,
+            dynamicRangeBehavior: factors.allSatisfy { $0 == 0 } ? .preservesExtendedRange : .clampsToUnitRange,
+            samplingFootprint: .point
+        )
     }
+
     public var kernelOutputContract: RenderOutputContract { .premultipliedColorInput }
 
     public init(hue: Float = 0, saturation: Float = 0, lightness: Float = 0) {

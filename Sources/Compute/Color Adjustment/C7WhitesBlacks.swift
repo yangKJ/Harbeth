@@ -28,9 +28,12 @@ public struct C7WhitesBlacks: C7FilterProtocol {
     }
 
     public var kernelPixelContract: KernelPixelContract {
-        .init(inputAlphaExpectation: .premultiplied, precision: .float32,
-              dynamicRangeBehavior: .preservesExtendedRange, samplingFootprint: .point)
+        .init(
+            inputAlphaExpectation: .premultiplied, precision: .float32,
+            dynamicRangeBehavior: .preservesExtendedRange, samplingFootprint: .point
+        )
     }
+
     public var kernelOutputContract: RenderOutputContract { .premultipliedColorInput }
 
     public init(whites: Float = 0, blacks: Float = 0) {

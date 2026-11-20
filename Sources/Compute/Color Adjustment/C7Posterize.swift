@@ -25,8 +25,12 @@ public struct C7Posterize: C7FilterProtocol {
     }
     
     public var kernelPixelContract: KernelPixelContract {
-        .init(inputAlphaExpectation: .premultiplied, outputAlpha: .preserveInput, precision: .float32, samplingFootprint: .point)
+        .init(
+            inputAlphaExpectation: .premultiplied, outputAlpha: .preserveInput,
+            precision: .float32, samplingFootprint: .point
+        )
     }
+
     public var kernelOutputContract: RenderOutputContract { .premultipliedColorInput }
 
     public init(colorLevels: Float = range.value) {

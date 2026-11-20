@@ -27,9 +27,12 @@ public struct C7Monochrome: C7FilterProtocol {
     }
     
     public var kernelPixelContract: KernelPixelContract {
-        .init(inputAlphaExpectation: .premultiplied, precision: .float32,
-              dynamicRangeBehavior: .preservesExtendedRange, samplingFootprint: .point)
+        .init(
+            inputAlphaExpectation: .premultiplied, precision: .float32,
+            dynamicRangeBehavior: .preservesExtendedRange, samplingFootprint: .point
+        )
     }
+
     public var kernelOutputContract: RenderOutputContract { .premultipliedColorInput }
 
     public init(intensity: Float = 1.0, color: C7Color = .zero) {

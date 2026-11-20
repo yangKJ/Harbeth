@@ -1,10 +1,14 @@
 // 由 Condy 维护。保留目录色阶/曲线/平衡顺序，在直色域计算后关联。
 #include <metal_stdlib>
 using namespace metal;
-kernel void C7ColorCorrection(
-    texture2d<float, access::write> output [[texture(0)]], texture2d<float, access::read> input [[texture(1)]],
-    constant float &levels [[buffer(0)]], constant float &curves [[buffer(1)]],
-    constant float &balance [[buffer(2)]], constant float &halfOutput [[buffer(3)]], uint2 grid [[thread_position_in_grid]]) {
+
+kernel void C7ColorCorrection(texture2d<float, access::write> output [[texture(0)]],
+                              texture2d<float, access::read> input [[texture(1)]],
+                              constant float &levels [[buffer(0)]],
+                              constant float &curves [[buffer(1)]],
+                              constant float &balance [[buffer(2)]],
+                              constant float &halfOutput [[buffer(3)]],
+                              uint2 grid [[thread_position_in_grid]]) {
     if (grid.x >= output.get_width() || grid.y >= output.get_height()) return;
     const float4 source = input.read(grid);
     if (levels == 0.0f && curves == 0.0f && balance == 0.0f) { output.write(source, grid); return; }

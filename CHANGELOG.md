@@ -26,6 +26,8 @@ Harbeth 的公开变更按时间倒序记录，格式遵循 [Keep a Changelog](h
 
 - `C7ColorCube` 的单位输入域四面体路径共用一个 Metal 函数特化，减少分支并保留宿主内核的查找优先级。LUT 直接遍历连续样本字节生成既有资源指纹。
 
+- `C7WhiteBalance` 在预乘 RGB 上求值，并可与相邻基础点运算共享一次派发，保留配方顺序和各步纹理格式舍入。
+
 #### Removed
 
 - 移除命名 CUBE 的算子替代注册接口，`C7ColorCube` 统一通过原生 3D LUT 查表。

@@ -30,8 +30,11 @@ public struct C7Saturation: C7FilterProtocol {
     }
     
     public var kernelPixelContract: KernelPixelContract {
-        .init(inputAlphaExpectation: .premultiplied, outputAlpha: .preserveInput, precision: .float32,
-              samplingFootprint: .point, fusionPolicy: .pointwise)
+        .init(
+            inputAlphaExpectation: .premultiplied, outputAlpha: .preserveInput,
+            precision: .float32,
+            samplingFootprint: .point, fusionPolicy: .pointwise
+        )
     }
 
     public var kernelOutputContract: RenderOutputContract { .premultipliedColorInput }

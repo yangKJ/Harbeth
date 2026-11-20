@@ -20,10 +20,12 @@ struct C7FusedPointOperations: C7FilterProtocol, FusedKernelProtocol {
             case exposure = 3
             case gamma = 4
             case opacity = 5
+            case whiteBalance = 6
         }
 
         let kind: Kind
         let value: Float
+        var secondaryValue: Float = 0
     }
 
     let operations: [Operation]
@@ -57,7 +59,7 @@ struct C7FusedPointOperations: C7FilterProtocol, FusedKernelProtocol {
                 name: "operations",
                 index: 0,
                 stage: .compute,
-                value: .floatArray(operations.flatMap { [$0.kind.rawValue, $0.value] })
+                value: .floatArray(operations.flatMap { [$0.kind.rawValue, $0.value, $0.secondaryValue] })
             ),
             KernelParameterBinding(
                 name: "operationCount",
@@ -98,15 +100,17 @@ enum PointwiseFusionPlanner {
         guard filters.count > 1 else { return filters }
         var result: [C7FilterProtocol] = []
         var pending: [C7FusedPointOperations.Operation] = []
+        var originalPendingFilter: C7FilterProtocol?
 
         func flushPending() {
             guard pending.isEmpty == false else { return }
-            if pending.count == 1, let operation = pending.first {
-                result.append(makeOriginalFilter(operation))
+            if pending.count == 1, let originalPendingFilter {
+                result.append(originalPendingFilter)
             } else {
                 result.append(C7FusedPointOperations(operations: pending))
             }
             pending.removeAll(keepingCapacity: true)
+            originalPendingFilter = nil
         }
 
         for filter in filters {
@@ -118,6 +122,7 @@ enum PointwiseFusionPlanner {
             if pending.count == maximumOperationCount {
                 flushPending()
             }
+            if pending.isEmpty { originalPendingFilter = filter }
             pending.append(operation)
         }
         flushPending()
@@ -140,19 +145,11 @@ enum PointwiseFusionPlanner {
             return .init(kind: .gamma, value: filter.factors[0])
         case let filter as C7Opacity:
             return .init(kind: .opacity, value: filter.factors[0])
+        case let filter as C7WhiteBalance:
+            let parameters = filter.pointwiseParameters
+            return .init(kind: .whiteBalance, value: parameters.x, secondaryValue: parameters.y)
         default:
             return nil
-        }
-    }
-
-    private static func makeOriginalFilter(_ operation: C7FusedPointOperations.Operation) -> C7FilterProtocol {
-        switch operation.kind {
-        case .brightness: return C7Brightness(brightness: operation.value)
-        case .contrast: return C7Contrast(contrast: operation.value)
-        case .saturation: return C7Saturation(saturation: operation.value)
-        case .exposure: return C7Exposure(exposure: operation.value)
-        case .gamma: return C7Gamma(gamma: operation.value)
-        case .opacity: return C7Opacity(opacity: operation.value)
         }
     }
 }

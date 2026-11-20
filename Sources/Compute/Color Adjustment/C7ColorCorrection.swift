@@ -30,7 +30,11 @@ public struct C7ColorCorrection: C7FilterProtocol {
     }
     
     public var factors: [Float] {
-        return [levels.isFinite ? levels : 0, curves.isFinite ? curves : 0, colorBalance.isFinite ? colorBalance : 0]
+        return [
+            levels.isFinite ? levels : 0,
+            curves.isFinite ? curves : 0,
+            colorBalance.isFinite ? colorBalance : 0
+        ]
     }
     
     public var memoryAccessPattern: MemoryAccessPattern {
@@ -38,9 +42,12 @@ public struct C7ColorCorrection: C7FilterProtocol {
     }
     
     public var kernelPixelContract: KernelPixelContract {
-        .init(inputAlphaExpectation: .premultiplied, precision: .float32,
-              dynamicRangeBehavior: .preservesExtendedRange, samplingFootprint: .point)
+        .init(
+            inputAlphaExpectation: .premultiplied, precision: .float32,
+            dynamicRangeBehavior: .preservesExtendedRange, samplingFootprint: .point
+        )
     }
+
     public var kernelOutputContract: RenderOutputContract { .premultipliedColorInput }
 
     public init(levels: Float = 0.0, curves: Float = 0.0, colorBalance: Float = 0.0) {

@@ -91,7 +91,8 @@ kernel void ClarityHorizontal(texture2d<float, access::read> source [[texture(0)
 kernel void ClarityVertical(texture2d<float, access::read> source [[texture(0)]],
                             texture2d<float, access::read> temporary [[texture(1)]],
                             texture2d<float, access::write> output [[texture(2)]],
-                            constant int &radius [[buffer(0)]], constant float *weights [[buffer(1)]],
+                            constant int &radius [[buffer(0)]],
+                            constant float *weights [[buffer(1)]],
                             constant float &intensity [[buffer(2)]],
                             uint2 q [[thread_position_in_grid]]) {
     if (q.x >= source.get_width() || q.y >= source.get_height()) return;

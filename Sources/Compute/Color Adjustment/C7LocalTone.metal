@@ -11,8 +11,10 @@ using namespace metal;
 static bool localToneSDR(float3 color) { return all(isfinite(color)) && all(color >= 0.0f) && all(color <= 1.0f); }
 
 kernel void localToneAccumulate(texture2d<half, access::read> source [[texture(0)]],
-    device atomic_uint *histogram [[buffer(0)]], device atomic_uint *counts [[buffer(1)]],
-    constant uint *values [[buffer(2)]], uint2 gid [[thread_position_in_grid]]) {
+                                device atomic_uint *histogram [[buffer(0)]],
+                                device atomic_uint *counts [[buffer(1)]],
+                                constant uint *values [[buffer(2)]],
+                                uint2 gid [[thread_position_in_grid]]) {
     if (gid.x >= source.get_width() || gid.y >= source.get_height()) return;
     uint2 size = uint2(values[0], values[1]);
     uint2 global = gid + uint2(values[2], values[3]);
@@ -29,8 +31,11 @@ kernel void localToneAccumulate(texture2d<half, access::read> source [[texture(0
 }
 
 kernel void localTonePercentiles(device const atomic_uint *histogram [[buffer(0)]],
-    device const atomic_uint *counts [[buffer(1)]], device float *percentiles [[buffer(2)]],
-    constant uint &columns [[buffer(3)]], constant uint &rows [[buffer(4)]], uint tile [[thread_position_in_grid]]) {
+                                 device const atomic_uint *counts [[buffer(1)]],
+                                 device float *percentiles [[buffer(2)]],
+                                 constant uint &columns [[buffer(3)]],
+                                 constant uint &rows [[buffer(4)]],
+                                 uint tile [[thread_position_in_grid]]) {
     if (tile >= columns * rows) return;
     uint count = atomic_load_explicit(&counts[tile], memory_order_relaxed);
     if (count == 0u) {
@@ -49,7 +54,7 @@ kernel void localTonePercentiles(device const atomic_uint *histogram [[buffer(0)
 }
 
 static float2 localToneMapping(uint tile, float luminance, device const float *lookup,
-    device const float *percentiles, float amount, bool classic) {
+                               device const float *percentiles, float amount, bool classic) {
     float p10 = percentiles[tile * 3u], median = percentiles[tile * 3u + 1u], p90 = percentiles[tile * 3u + 2u];
     if (!classic && p90 - p10 < 0.5f / 255.0f) return float2(luminance, 0.0f);
     if (amount >= 0.0f) {
@@ -62,8 +67,11 @@ static float2 localToneMapping(uint tile, float luminance, device const float *l
 }
 
 kernel void localToneApply(texture2d<half, access::write> destination [[texture(0)]],
-    texture2d<half, access::read> source [[texture(1)]], device const float *lookup [[buffer(0)]],
-    device const float *percentiles [[buffer(1)]], constant uint *values [[buffer(2)]], uint2 gid [[thread_position_in_grid]]) {
+                           texture2d<half, access::read> source [[texture(1)]],
+                           device const float *lookup [[buffer(0)]],
+                           device const float *percentiles [[buffer(1)]],
+                           constant uint *values [[buffer(2)]],
+                           uint2 gid [[thread_position_in_grid]]) {
     if (gid.x >= destination.get_width() || gid.y >= destination.get_height()) return;
     half4 original = source.read(gid);
     float4 pixel = float4(original);

@@ -26,8 +26,17 @@ public struct C7WhiteBalance: C7FilterProtocol {
         return [temperature.isFinite ? temperature : 5000, tint.isFinite ? tint : 0]
     }
     
+    public var memoryAccessPattern: MemoryAccessPattern { .point }
+
+    var pointwiseParameters: SIMD2<Float> {
+        let factors = self.factors
+        let temperature = factors[0]
+        let amount: Float = temperature < 5000 ? 0.0004 : 0.00006
+        return SIMD2(amount * (temperature - 5000), factors[1] / 100)
+    }
+
     public var kernelPixelContract: KernelPixelContract {
-        .init(inputAlphaExpectation: .premultiplied, outputAlpha: .preserveInput, precision: .float32, samplingFootprint: .point)
+        .init(inputAlphaExpectation: .premultiplied, outputAlpha: .preserveInput, precision: .float32, samplingFootprint: .point, fusionPolicy: .pointwise)
     }
     public var kernelOutputContract: RenderOutputContract { .premultipliedColorInput }
 

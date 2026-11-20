@@ -1,10 +1,14 @@
 // 由 Condy 维护。保留YIQ系数意图，以线性旋转代替每像素极坐标往返。
 #include <metal_stdlib>
 using namespace metal;
-kernel void C7Hue(
-    texture2d<float, access::write> output [[texture(0)]], texture2d<float, access::read> input [[texture(1)]],
-    constant float &radians [[buffer(0)]], constant float &cosine [[buffer(1)]],
-    constant float &sine [[buffer(2)]], constant float &halfOutput [[buffer(3)]], uint2 grid [[thread_position_in_grid]]) {
+
+kernel void C7Hue(texture2d<float, access::write> output [[texture(0)]],
+                  texture2d<float, access::read> input [[texture(1)]],
+                  constant float &radians [[buffer(0)]],
+                  constant float &cosine [[buffer(1)]],
+                  constant float &sine [[buffer(2)]],
+                  constant float &halfOutput [[buffer(3)]],
+                  uint2 grid [[thread_position_in_grid]]) {
     if (grid.x >= output.get_width() || grid.y >= output.get_height()) return;
     const float4 source = input.read(grid);
     if (!isfinite(radians) || radians == 0.0f || radians == 6.283185307179586f) { output.write(source, grid); return; }

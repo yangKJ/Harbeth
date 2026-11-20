@@ -19,10 +19,10 @@ static float4 pointGamma(float4 color, float parameter) {
 }
 
 kernel void C7Gamma(texture2d<float, access::write> outputTexture [[texture(0)]],
-                       texture2d<float, access::read> inputTexture [[texture(1)]],
-                       constant float &parameter [[buffer(0)]],
-                       constant float &halfOutput [[buffer(1)]],
-                       uint2 grid [[thread_position_in_grid]]) {
+                    texture2d<float, access::read> inputTexture [[texture(1)]],
+                    constant float &parameter [[buffer(0)]],
+                    constant float &halfOutput [[buffer(1)]],
+                    uint2 grid [[thread_position_in_grid]]) {
     if (grid.x >= outputTexture.get_width() || grid.y >= outputTexture.get_height()) return;
     const float4 result = pointGamma(inputTexture.read(grid), parameter);
     outputTexture.write(halfOutput > 0.5f ? float4(half4(result)) : result, grid);

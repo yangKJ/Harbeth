@@ -28,8 +28,11 @@ public struct C7Opacity: C7FilterProtocol {
     }
     
     public var kernelPixelContract: KernelPixelContract {
-        .init(inputAlphaExpectation: .premultiplied, outputAlpha: .premultiplied, precision: .float32,
-              samplingFootprint: .point, fusionPolicy: .pointwise)
+        .init(
+            inputAlphaExpectation: .premultiplied, outputAlpha: .premultiplied,
+            precision: .float32,
+            samplingFootprint: .point, fusionPolicy: .pointwise
+        )
     }
 
     public var kernelOutputContract: RenderOutputContract { .premultipliedColorOutput }
