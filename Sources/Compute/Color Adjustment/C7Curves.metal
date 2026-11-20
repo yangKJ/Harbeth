@@ -93,7 +93,19 @@ static float curveCubic(float value, constant float *points, int count, bool ext
         : points[(count - 1) * 2 + 1];
     }
     int index = 0;
-    while (index < count - 2 && points[(index + 1) * 2] < value) ++index;
+    // 仅在网格中最多一个内部控制点的通道启用；严格比较保留旧段边界。
+    const int table = offset > 0 && count == 32 ? offset + count : 0;
+    const uint binCount = table > 0 ? uint(preparedTangents[table]) : 0;
+    if (offset > 0 && count == 9) {
+        for (int knot = 1; knot < 8; ++knot) index += int(points[knot * 2] < value);
+    } else if (binCount > 0 && isfinite(value)) {
+        const uint bin = min(uint(value * float(binCount)), binCount - 1);
+        const uint entries = uint(preparedTangents[table + 1 + (bin >> 2)]);
+        index = int((entries >> ((bin & 3) * 5)) & 31);
+        index += int(points[(index + 1) * 2] < value);
+    } else {
+        while (index < count - 2 && points[(index + 1) * 2] < value) ++index;
+    }
     const float x0 = points[index * 2], y0 = points[index * 2 + 1];
     const float x1 = points[(index + 1) * 2], y1 = points[(index + 1) * 2 + 1];
     const float h = x1 - x0;

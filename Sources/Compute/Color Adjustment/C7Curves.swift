@@ -143,11 +143,36 @@ public struct C7Curves: C7FilterProtocol {
             } else if let tangents = Self.cubicTangents(points) {
                 slopes[channel] = Float(slopes.count)
                 slopes.append(contentsOf: tangents)
+                if points.count == 32 {
+                    slopes.append(contentsOf: Self.segmentBins(points))
+                }
             }
         }
         preparedCubicBindings = pointBindings + [
             KernelParameterBinding(name: "preparedTangents", index: 8, stage: .compute, value: .floatArray(slopes))
         ]
+    }
+
+    // 每格存起始段。四个五位段号打包成一个可精确表示的 Float，沿用现有参数绑定。
+    private static func segmentBins(_ points: [C7Point2D]) -> [Float] {
+        guard points.first?.x == 0, points.last?.x == 1 else { return [0] }
+        for count in [32, 256] {
+            var words = [UInt32](repeating: 0, count: count / 4)
+            var segment = 0
+            var fits = true
+            for bin in 0..<count {
+                let lower = Float(bin) / Float(count)
+                let upper = Float(bin + 1) / Float(count)
+                while segment < points.count - 2, points[segment + 1].x < lower { segment += 1 }
+                if segment + 2 < points.count - 1, points[segment + 2].x < upper {
+                    fits = false
+                    break
+                }
+                words[bin / 4] |= UInt32(segment) << ((bin % 4) * 5)
+            }
+            if fits { return [Float(count)] + words.map { Float($0) } }
+        }
+        return [0]
     }
 
     private static func cubicTangents(_ points: [C7Point2D]) -> [Float]? {

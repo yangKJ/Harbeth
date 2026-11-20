@@ -393,6 +393,56 @@ final class FilterPrimitiveCoverageTests: XCTestCase {
         }
     }
 
+    func testPreparedCurvesSegmentSearchKeepsBoundariesAndCrowdedPoints() throws {
+        let coarse = (0..<32).map { index -> C7Point2D in
+            let x = Float(index) / 31
+            return .init(x: x, y: 0.25 * x + 0.75 * x * x)
+        }
+        var fine = (0..<31).map { index -> C7Point2D in
+            let x = Float(index) / 255
+            return .init(x: x, y: 0.7 * x)
+        }
+        fine.append(.init(x: 1, y: 1))
+        var crowded = fine
+        crowded[15].x = crowded[14].x + 0.0005
+        let nine = (0...8).map { index -> C7Point2D in
+            let x = Float(index) / 8
+            return .init(x: x, y: 0.65 * x + 0.35 * x * x)
+        }
+        let curves = C7Curves(
+            rgbPoints: nine,
+            redPoints: coarse,
+            greenPoints: fine,
+            bluePoints: crowded,
+            interpolation: .shapePreserving,
+            extrapolation: .linear,
+            compositionOrder: .channelsThenRGB
+        )
+
+        let binding = try XCTUnwrap(curves.kernelParameterBindings.first { $0.name == "preparedTangents" })
+        guard case .floatArray(let data) = binding.value else { return XCTFail("缺少曲线参数") }
+        XCTAssertEqual(data[Int(data[1]) + coarse.count], 32)
+        XCTAssertEqual(data[Int(data[2]) + fine.count], 256)
+        XCTAssertEqual(data[Int(data[3]) + crowded.count], 0)
+
+        let boundaries = (0...256).map { Float16(Float($0) / 256) }
+        let knots = (nine + coarse + fine + crowded).map { Float16($0.x) }
+        let probes: [Float16] = (boundaries + knots).flatMap { [$0.nextDown, $0, $0.nextUp] } + [-0.25, 1.5]
+        let inputs = probes.enumerated().flatMap { index, value -> [Float16] in
+            let alpha: Float16 = [1, 0.5, 0.25, 0][index % 4]
+            return [value * alpha, value * alpha, value * alpha, alpha]
+        }
+        let source = try makeRGBA16FloatTexture(width: probes.count, pixels: inputs)
+        let expected = try HarbethIO(element: source, filter: UnpreparedCurves(filter: curves))
+            .renderTexture(profile: .exportQuality)
+        let actual = try HarbethIO(element: source, filter: curves).renderTexture(profile: .exportQuality)
+        let pixels = try rgba16FloatPixels(in: actual)
+        for (index, reference) in try rgba16FloatPixels(in: expected).enumerated() {
+            let tolerance = index % 4 == 3 ? 0 : Float(Float16(reference).ulp)
+            XCTAssertEqual(pixels[index], reference, accuracy: tolerance, "通道分量 \(index)")
+        }
+    }
+
     func testPreparedCurvesRefreshAfterPointMutationAndModeSwitch() throws {
         var edit = C7Curves(interpolation: .shapePreserving)
         let original = edit
