@@ -484,6 +484,9 @@ extension Device {
     }
 
     func readMTLFunction(_ name: String) throws -> MTLFunction {
+        if name == "C7ColorCube" {
+            return try readMTLFunction(KernelFunctionIdentity(kind: .compute, primaryName: name))
+        }
         /// Read external libraries
         for library in externalLibraries() {
             if let function = library.makeFunction(name: name) {
@@ -523,11 +526,20 @@ extension Device {
             return cached
         }
 
+        let optionalCubeSpecialization = functionName == "C7ColorCube"
+            && identity.functionConstants.count == 1
+            && identity.functionConstants.first?.name == C7ColorCube.unitTetrahedralConstant
         func makeFunction(from library: MTLLibrary) -> MTLFunction? {
-            if let constantValues {
+            if let constantValues, !optionalCubeSpecialization {
                 return try? library.makeFunction(name: functionName, constantValues: constantValues)
             }
             guard let function = library.makeFunction(name: functionName) else { return nil }
+            // 保留旧的宿主自定义 CUBE 内核及其优先级。
+            if optionalCubeSpecialization, let constantValues,
+               function.functionConstantsDictionary[C7ColorCube.unitTetrahedralConstant] != nil,
+               let specialized = try? library.makeFunction(name: functionName, constantValues: constantValues) {
+                return specialized
+            }
             // 可选常量也必须经过特化；空表让内核选择未定义常量的默认分支。
             if !function.functionConstantsDictionary.isEmpty {
                 return try? library.makeFunction(name: functionName, constantValues: MTLFunctionConstantValues())

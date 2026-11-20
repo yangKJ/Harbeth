@@ -8,6 +8,9 @@
 #include <metal_stdlib>
 using namespace metal;
 
+constant bool colorCubeUnitTetrahedral [[function_constant(0)]];
+constant bool cubeUsesUnitTetrahedral = is_function_constant_defined(colorCubeUnitTetrahedral) ? colorCubeUnitTetrahedral : false;
+
 static inline float4 cubeOutputColor(float4 value, float halfOutput) {
     return halfOutput > 0.5f ? float4(half4(value)) : value;
 }
@@ -92,7 +95,8 @@ kernel void C7ColorCube(texture2d<float, access::write> outputTexture [[texture(
         outputTexture.write(cubeOutputColor(input, halfOutput), grid);
         return;
     }
-    const bool unitDomain = all(domainMinimum == float3(0.0f)) && all(domainMaximum == float3(1.0f));
+    const bool unitDomain = cubeUsesUnitTetrahedral
+        || (all(domainMinimum == float3(0.0f)) && all(domainMaximum == float3(1.0f)));
     // 单位输入域只需钳制，同时保留通用归一化对负零的处理。
     const float3 normalized = unitDomain
         ? select(clamp(inputRGB, 0.0f, 1.0f), float3(0.0f), inputRGB <= 0.0f)
@@ -103,7 +107,7 @@ kernel void C7ColorCube(texture2d<float, access::write> outputTexture [[texture(
     const float3 scaled = normalized * float(dimension - 1);
     const int3 base = int3(floor(scaled));
     const float3 fraction = scaled - float3(base);
-    const bool useTetrahedral = interpolation >= 0.5f;
+    const bool useTetrahedral = cubeUsesUnitTetrahedral || interpolation >= 0.5f;
     const float3 mapped = useTetrahedral
         ? cubeTetrahedral(lutTexture, base, fraction, dimension)
         : cubeTrilinear(lutTexture, base, fraction, dimension);

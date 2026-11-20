@@ -140,6 +140,28 @@ final class LUTAlgorithmRegressionTests: XCTestCase {
         }
     }
 
+    func testUnitTetrahedralSpecializationMatchesGenericCube() throws {
+        let values: [Float] = [
+            0.4, 0.4, 0.1, 0.25, 0.2, 0.6, 0.6, 1,
+            -0.0, 1, 0, 0.5, 1.125, -0.125, 0.75, 0.75
+        ]
+        let resource = C7ColorCube.Resource(dimension: 17, data: data(cubeValues(17, nonlinear: true)))
+        for format in [MTLPixelFormat.rgba16Float, .rgba32Float] {
+            let input = try NeighborhoodTestImage.make(width: 4, height: 1, values: values, format: format)
+            for policy in [C7ColorCube.DomainPolicy.clampToDomain, .preserveOutsideDomain] {
+                let cube = C7ColorCube(cubeResource: resource, intensity: 0.7, domainPolicy: policy)
+                XCTAssertEqual(cube.kernelDescriptor().functionIdentity.functionConstants.map(\.name),
+                    [C7ColorCube.unitTetrahedralConstant])
+                let generic = ForwardedAlgorithmFilter(base: cube)
+                XCTAssertTrue(generic.kernelDescriptor().functionIdentity.functionConstants.isEmpty)
+                let actual: MTLTexture = try HarbethIO(element: input, filter: cube).output()
+                let expected: MTLTexture = try HarbethIO(element: input, filter: generic).output()
+                XCTAssertEqual(actual.c7.rawBytes(maximumBytes: 64), expected.c7.rawBytes(maximumBytes: 64))
+                XCTAssertTrue(cube.updateInterpolation(.trilinear).kernelDescriptor().functionIdentity.functionConstants.isEmpty)
+            }
+        }
+    }
+
     func testExplicitHalfOutputRoundingDoesNotNarrowFloat32() throws {
         let value: Float = 0.5003
         let resource = C7ColorCube.Resource(dimension: 2, data: data(Array(repeating: [value, value, value, 1], count: 8).flatMap { $0 }))
@@ -196,6 +218,7 @@ final class LUTAlgorithmRegressionTests: XCTestCase {
         let values = data(cubeValues(65, nonlinear: true))
         let unaligned = (Data([0]) + values).dropFirst()
         let resource = C7ColorCube.Resource(dimension: 65, data: unaligned)
+        XCTAssertEqual(resource.identity, C7ColorCube.Resource(dimension: 65, data: values).identity)
         let context = HarbethContext.shared
         context.invalidateDerivedResources(domain: .lookupTable, namespace: "harbeth.lookup-table")
         defer { context.invalidateDerivedResources(domain: .lookupTable, namespace: "harbeth.lookup-table") }

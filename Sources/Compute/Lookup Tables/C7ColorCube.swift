@@ -14,6 +14,11 @@ import Darwin
 /// 3D LUT颜色立方体滤镜
 /// 使用Metal实现的CUBE文件格式LUT滤镜
 public struct C7ColorCube: C7FilterPipelineProtocol {
+    static let unitTetrahedralConstant = "colorCubeUnitTetrahedral"
+    private static let unitTetrahedralConstants: [KernelFunctionConstantDescriptor] = [
+        .init(name: unitTetrahedralConstant, index: 0, value: .bool(true))
+    ]
+
     public enum DomainPolicy: Float, Sendable, Codable, Equatable {
         case clampToDomain = 0
         case preserveOutsideDomain = 1
@@ -82,8 +87,11 @@ public struct C7ColorCube: C7FilterPipelineProtocol {
     public func makeFinalFilter(otherInputTextures: C7InputTextures?) -> C7FilterProtocol? {
         if let resourceLoadError { return ColorCubeResourceFailure(error: resourceLoadError, kernelParameterBindings: kernelParameterBindings) }
         if lutTexture == nil { return ColorCubeResourceFailure(error: .cubeResource, kernelParameterBindings: kernelParameterBindings) }
+        let useUnitTetrahedral = interpolation == .tetrahedral
+            && domainMinimum == .zero && domainMaximum == SIMD3<Float>(repeating: 1)
         return ColorCubeKernel(bindings: kernelParameterBindings, inputs: self.otherInputTextures,
-            identity: resourceIdentity, pixelContract: kernelPixelContract)
+            identity: resourceIdentity, pixelContract: kernelPixelContract,
+            computeKernelFunctionConstants: useUnitTetrahedral ? Self.unitTetrahedralConstants : [])
     }
 
     public var kernelPixelContract: KernelPixelContract {
@@ -200,6 +208,7 @@ private struct ColorCubeKernel: C7FilterProtocol {
     let inputs: C7InputTextures
     let identity: String?
     let pixelContract: KernelPixelContract
+    let computeKernelFunctionConstants: [KernelFunctionConstantDescriptor]
     var modifier: ModifierEnum { .compute(kernel: "C7ColorCube") }
     var kernelParameterBindings: [KernelParameterBinding] { bindings }
     var otherInputTextures: C7InputTextures { inputs }
@@ -441,10 +450,13 @@ private extension C7ColorCube.Resource {
     }
 
     static func makeIdentity(dimension: Int, data: Data, domainMinimum: SIMD3<Float>, domainMaximum: SIMD3<Float>) -> String {
-        var hash: UInt64 = 14_695_981_039_346_656_037
-        for byte in data {
-            hash ^= UInt64(byte)
-            hash &*= 1_099_511_628_211
+        let hash = data.withUnsafeBytes { buffer in
+            var value: UInt64 = 14_695_981_039_346_656_037
+            for byte in buffer {
+                value ^= UInt64(byte)
+                value &*= 1_099_511_628_211
+            }
+            return value
         }
         return "cube|\(dimension)|\(domainMinimum)|\(domainMaximum)|\(String(hash, radix: 16))"
     }
