@@ -321,10 +321,12 @@ static float3 applyLabColorWindow(float3 rgb, float4 hueEdges, float4 edges, flo
 }
 
 static float3 applyLabCorrections(float3 rgb, constant float *parameters) {
-    const uint count = min(uint(parameters[0]), 9u);
-    if (count == 0 || !all(isfinite(rgb)) || any(rgb > 1.0f)) return rgb;
-    // 以可显示颜色选择窗口。仅对命中的负通道做色域映射，扩展高光继续透传。
-    const float3 bounded = max(rgb, 0.0f);
+    const uint count = min(uint(parameters[0]), 12u);
+    if (count == 0 || !all(isfinite(rgb))) return rgb;
+    const bool extended = any(rgb > 1.0f);
+    if (extended && parameters[1] == 0.0f) return rgb;
+    // 用可显示的颜色判定色窗，扩展高光仅交给显式启用的色窗。
+    const float3 bounded = extended ? clamp(rgb, 0.0f, 1.0f) : max(rgb, 0.0f);
     if (all(bounded == bounded.rrr)) return rgb;
     const float3 linear = select(bounded / 12.92f, pow((bounded + 0.055f) / 1.055f, 2.4f), bounded > 0.04045f);
     const float3 xyz = float3(dot(linear, float3(0.412453f, 0.35758f, 0.180423f)),
@@ -339,20 +341,33 @@ static float3 applyLabCorrections(float3 rgb, constant float *parameters) {
     const float angle = atan2(ab.y, ab.x);
     const float hue = (angle < 0.0f ? angle + 6.283185307f : angle) * 57.295779513f;
     float3 change = 0.0f;
+    bool mapHighlights = false;
     for (uint index = 0; index < count; index++) {
-        constant float *window = parameters + 1 + index * 15;
+        constant float *window = parameters + 2 + index * 16;
+        const bool mapsHighlights = window[15] > 0.0f;
+        if (extended && !mapsHighlights) continue;
         const float minimumLightness = window[12] > window[11] ? smoothstep(window[11], window[12], light) : 1.0f;
         const float weight = smoothstep(window[0], window[1], hue)
             * (1.0f - smoothstep(window[2], window[3], hue))
             * smoothstep(window[4], window[5], chroma)
             * (1.0f - smoothstep(window[6], window[7], light));
         const float chromaFade = window[14] > window[13] ? 1.0f - smoothstep(window[13], window[14], chroma) : 1.0f;
-        change += (weight * minimumLightness * chromaFade) * float3(window[8], window[9], window[10]);
+        const float amount = weight * minimumLightness * chromaFade;
+        change += amount * float3(window[8], window[9], window[10]);
+        mapHighlights = mapHighlights || (mapsHighlights && amount > 0.0f);
     }
     if (all(change == 0.0f)) return rgb;
     const float target = angle + change.z * 0.01745329252f;
     const float2 deltaAB = max(0.0f, chroma + change.y) * float2(cos(target), sin(target)) - ab;
     float3 output = labWindowLinearRGB(light + change.x, ab + deltaAB);
+    if (mapHighlights && all(output >= 0.0f)) {
+        // 按同一个系数收敛线性 RGB 的峰值，随后恢复原有扩展通道。
+        output /= max(1.0f, max(output.r, max(output.g, output.b)));
+        const float3 mapped = select(12.92f * output, 1.055f * pow(output, 1.0f / 2.4f) - 0.055f,
+                                     output > 0.0031308f);
+        return select(mapped, rgb, rgb > 1.0f);
+    }
+    if (extended) return rgb;
     if (!labWindowInGamut(output)) {
         // 联合收敛明度与色度位移，避免逐通道裁剪造成色相跳变。
         float lower = 0.0f;

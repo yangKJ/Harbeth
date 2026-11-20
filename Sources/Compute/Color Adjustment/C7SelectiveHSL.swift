@@ -76,7 +76,7 @@ public struct C7SelectiveHSL: C7FilterProtocol {
 
     /// 对显示色域内指定的色相与色度区间，分别校正 Lab 明度、色度和色相。
     public struct LabColorCorrection: Codable, Hashable, Sendable {
-        public static let maximumCount = 9
+        public static let maximumCount = 12
 
         public let hueEdges: SIMD4<Float>
         public let chromaEdges: SIMD2<Float>
@@ -85,6 +85,8 @@ public struct C7SelectiveHSL: C7FilterProtocol {
         public let minimumLightnessEdges: SIMD2<Float>?
         /// 可选的高色度渐退区间。未指定时，色度超过渐入区间后保持全强度。
         public let chromaFadeEdges: SIMD2<Float>?
+        /// 校正触及正色域上限的高光颜色，同时保留已扩展的 RGB 通道。
+        public let mapsHighlightsAtGamutBoundary: Bool?
         /// L* 增量、色度增量、色相角度增量。
         public let delta: SIMD3<Float>
 
@@ -94,13 +96,15 @@ public struct C7SelectiveHSL: C7FilterProtocol {
             lightnessEdges: SIMD2<Float>,
             delta: SIMD3<Float>,
             minimumLightnessEdges: SIMD2<Float>? = nil,
-            chromaFadeEdges: SIMD2<Float>? = nil
+            chromaFadeEdges: SIMD2<Float>? = nil,
+            mapsHighlightsAtGamutBoundary: Bool? = nil
         ) {
             self.hueEdges = hueEdges
             self.chromaEdges = chromaEdges
             self.lightnessEdges = lightnessEdges
             self.minimumLightnessEdges = minimumLightnessEdges
             self.chromaFadeEdges = chromaFadeEdges
+            self.mapsHighlightsAtGamutBoundary = mapsHighlightsAtGamutBoundary
             self.delta = delta
             guard isValid else { return nil }
         }
@@ -125,7 +129,8 @@ public struct C7SelectiveHSL: C7FilterProtocol {
             let fade = chromaFadeEdges ?? .zero
             return [hueEdges.x, hueEdges.y, hueEdges.z, hueEdges.w,
                     chromaEdges.x, chromaEdges.y, lightnessEdges.x, lightnessEdges.y,
-                    delta.x, delta.y, delta.z, minimum.x, minimum.y, fade.x, fade.y]
+                    delta.x, delta.y, delta.z, minimum.x, minimum.y, fade.x, fade.y,
+                    mapsHighlightsAtGamutBoundary == true ? 1 : 0]
         }
     }
 
@@ -348,8 +353,10 @@ public struct C7SelectiveHSL: C7FilterProtocol {
                 .init(name: "labHigh", index: 9, stage: .compute, value: .float3(lab.high)),
             ]
             if !lab.corrections.isEmpty {
+                let mapsHighlights = lab.corrections.contains { $0.mapsHighlightsAtGamutBoundary == true }
+                let header: [Float] = [Float(lab.corrections.count), mapsHighlights ? 1 : 0]
                 bindings.append(.init(name: "labCorrections", index: 10, stage: .compute,
-                    value: .floatArray([Float(lab.corrections.count)] + lab.corrections.flatMap(\.parameterValues))))
+                    value: .floatArray(header + lab.corrections.flatMap(\.parameterValues))))
             }
         }
         return bindings

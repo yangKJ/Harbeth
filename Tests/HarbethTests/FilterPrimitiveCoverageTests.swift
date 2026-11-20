@@ -1017,6 +1017,46 @@ final class FilterPrimitiveCoverageTests: XCTestCase {
         }
     }
 
+    func testLabHighlightMappingKeepsExtendedChannelsAndCoverage() throws {
+        let source = try makeRGBA16FloatTexture(width: 4, pixels: [
+            0.64, 0.83, 1.07, 1,
+            0.32, 0.415, 0.535, 0.5,
+            1.08, 1.08, 1.08, 1,
+            1.07, 0.85, 0.64, 1,
+        ])
+        func window(mapsHighlights: Bool?) throws -> C7SelectiveHSL.LabColorWindow {
+            let correction = try XCTUnwrap(C7SelectiveHSL.LabColorCorrection(
+                hueEdges: SIMD4(225, 241, 270, 290),
+                chromaEdges: SIMD2(8, 15),
+                lightnessEdges: SIMD2(89, 96),
+                delta: SIMD3(0.45, 1.1, 9),
+                minimumLightnessEdges: SIMD2(65, 73),
+                chromaFadeEdges: SIMD2(34, 45),
+                mapsHighlightsAtGamutBoundary: mapsHighlights
+            ))
+            return try XCTUnwrap(C7SelectiveHSL.LabColorWindow(
+                hueEdges: SIMD4(220, 240, 270, 300), chromaEdges: SIMD2(8, 10),
+                highlightEdges: SIMD2(70, 90), low: SIMD3(0, 0, 0), high: SIMD3(90, 0, 0),
+                corrections: [correction]
+            ))
+        }
+        let baseline = C7SelectiveHSL(response: .photographicNeutral, labColorWindow: try window(mapsHighlights: nil))
+        let adjusted = C7SelectiveHSL(response: .photographicNeutral, labColorWindow: try window(mapsHighlights: true))
+        let before = try rgba16FloatPixels(in: HarbethIO(element: source, filter: baseline).renderTexture(profile: .exportQuality))
+        let after = try rgba16FloatPixels(in: HarbethIO(element: source, filter: adjusted).renderTexture(profile: .exportQuality))
+        let redDifference = abs(after[0] - before[0])
+        let greenDifference = abs(after[1] - before[1])
+        XCTAssertGreaterThan(redDifference + greenDifference, 0.01)
+        XCTAssertEqual(after[2], before[2])
+        XCTAssertEqual(after[3], before[3])
+        XCTAssertEqual(after[6], before[6])
+        XCTAssertEqual(after[7], before[7])
+        XCTAssertEqual(Array(after.dropFirst(8)), Array(before.dropFirst(8)))
+        for channel in 0..<3 {
+            XCTAssertEqual(after[channel], 2 * after[channel + 4], accuracy: 0.002)
+        }
+    }
+
     func testPhotographicHighlightNeutralizationKeepsCoverageAndExtendedBlue() throws {
         let highlights = try XCTUnwrap(C7SelectiveHSL.HighlightNeutralization(
             amount: 0.65,
