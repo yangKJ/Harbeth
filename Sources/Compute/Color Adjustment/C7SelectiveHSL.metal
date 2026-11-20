@@ -280,6 +280,7 @@ static bool labWindowInGamut(float3 rgb) {
 }
 
 static float3 applyLabColorWindow(float3 rgb, float4 hueEdges, float4 edges, float3 low, float3 high) {
+    if (all(low.yz == float2(0.0f)) && all(high.yz == float2(0.0f))) return rgb;
     if (!labWindowInGamut(rgb) || all(rgb == rgb.rrr)) return rgb;
     const float3 linear = select(rgb / 12.92f, pow((rgb + 0.055f) / 1.055f, 2.4f), rgb > 0.04045f);
     const float3 xyz = float3(dot(linear, float3(0.412453f, 0.35758f, 0.180423f)),
