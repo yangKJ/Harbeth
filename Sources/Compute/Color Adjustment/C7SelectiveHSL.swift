@@ -68,23 +68,37 @@ public struct C7SelectiveHSL: C7FilterProtocol {
 
     /// 对显示色域内指定的色相与色度区间，分别校正 Lab 明度、色度和色相。
     public struct LabColorCorrection: Codable, Hashable, Sendable {
+        public static let maximumCount = 5
+
         public let hueEdges: SIMD4<Float>
         public let chromaEdges: SIMD2<Float>
         public let lightnessEdges: SIMD2<Float>
+        /// 可选的低明度起点和全强度点。未指定时维持原有暗部权重。
+        public let minimumLightnessEdges: SIMD2<Float>?
         /// L* 增量、色度增量、色相角度增量。
         public let delta: SIMD3<Float>
 
-        public init?(hueEdges: SIMD4<Float>, chromaEdges: SIMD2<Float>,
-                     lightnessEdges: SIMD2<Float>, delta: SIMD3<Float>) {
+        public init?(
+            hueEdges: SIMD4<Float>,
+            chromaEdges: SIMD2<Float>,
+            lightnessEdges: SIMD2<Float>,
+            delta: SIMD3<Float>,
+            minimumLightnessEdges: SIMD2<Float>? = nil
+        ) {
             self.hueEdges = hueEdges
             self.chromaEdges = chromaEdges
             self.lightnessEdges = lightnessEdges
+            self.minimumLightnessEdges = minimumLightnessEdges
             self.delta = delta
             guard isValid else { return nil }
         }
 
         public var isValid: Bool {
-            hueEdges.x >= 0 && hueEdges.x < hueEdges.y && hueEdges.y <= hueEdges.z
+            if let minimumLightnessEdges,
+               !(minimumLightnessEdges.x >= 0 && minimumLightnessEdges.x < minimumLightnessEdges.y
+                 && minimumLightnessEdges.y <= lightnessEdges.x) { return false }
+
+            return hueEdges.x >= 0 && hueEdges.x < hueEdges.y && hueEdges.y <= hueEdges.z
                 && hueEdges.z < hueEdges.w && hueEdges.w <= 360
                 && chromaEdges.x > 0 && chromaEdges.x < chromaEdges.y && chromaEdges.y <= 128
                 && lightnessEdges.x >= 0 && lightnessEdges.x < lightnessEdges.y && lightnessEdges.y <= 100
@@ -92,9 +106,10 @@ public struct C7SelectiveHSL: C7FilterProtocol {
         }
 
         fileprivate var parameterValues: [Float] {
-            [hueEdges.x, hueEdges.y, hueEdges.z, hueEdges.w,
-             chromaEdges.x, chromaEdges.y, lightnessEdges.x, lightnessEdges.y,
-             delta.x, delta.y, delta.z]
+            let minimum = minimumLightnessEdges ?? .zero
+            return [hueEdges.x, hueEdges.y, hueEdges.z, hueEdges.w,
+                    chromaEdges.x, chromaEdges.y, lightnessEdges.x, lightnessEdges.y,
+                    delta.x, delta.y, delta.z, minimum.x, minimum.y]
         }
     }
 
@@ -122,7 +137,7 @@ public struct C7SelectiveHSL: C7FilterProtocol {
                   highlightEdges.x >= 0, highlightEdges.x < highlightEdges.y, highlightEdges.y <= 100,
                   low.x >= 0, low.x < high.x, high.x <= 100,
                   [low.y, low.z, high.y, high.z].allSatisfy({ (-128...128).contains($0) }),
-                  corrections.count <= 2, corrections.allSatisfy(\.isValid) else { return nil }
+                  corrections.count <= LabColorCorrection.maximumCount, corrections.allSatisfy(\.isValid) else { return nil }
             self.hueEdges = hueEdges
             self.chromaEdges = chromaEdges
             self.highlightEdges = highlightEdges

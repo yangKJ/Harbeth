@@ -294,7 +294,7 @@ static float3 applyLabColorWindow(float3 rgb, float4 hueEdges, float4 edges, flo
 }
 
 static float3 applyLabCorrections(float3 rgb, constant float *parameters) {
-    const uint count = min(uint(parameters[0]), 2u);
+    const uint count = min(uint(parameters[0]), 5u);
     if (count == 0 || !all(isfinite(rgb)) || any(rgb > 1.0f)) return rgb;
     // 以可显示颜色选择窗口。仅对命中的负通道做色域映射，扩展高光继续透传。
     const float3 bounded = max(rgb, 0.0f);
@@ -313,12 +313,13 @@ static float3 applyLabCorrections(float3 rgb, constant float *parameters) {
     const float hue = (angle < 0.0f ? angle + 6.283185307f : angle) * 57.295779513f;
     float3 change = 0.0f;
     for (uint index = 0; index < count; index++) {
-        constant float *window = parameters + 1 + index * 11;
+        constant float *window = parameters + 1 + index * 13;
+        const float minimumLightness = window[12] > window[11] ? smoothstep(window[11], window[12], light) : 1.0f;
         const float weight = smoothstep(window[0], window[1], hue)
             * (1.0f - smoothstep(window[2], window[3], hue))
             * smoothstep(window[4], window[5], chroma)
             * (1.0f - smoothstep(window[6], window[7], light));
-        change += weight * float3(window[8], window[9], window[10]);
+        change += (weight * minimumLightness) * float3(window[8], window[9], window[10]);
     }
     if (all(change == 0.0f)) return rgb;
     const float target = angle + change.z * 0.01745329252f;
