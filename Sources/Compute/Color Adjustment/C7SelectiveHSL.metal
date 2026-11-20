@@ -293,6 +293,52 @@ static float3 applyLabColorWindow(float3 rgb, float4 hueEdges, float4 edges, flo
     return select(12.92f * output, 1.055f * pow(output, 1.0f / 2.4f) - 0.055f, output > 0.0031308f);
 }
 
+static float3 applyLabCorrections(float3 rgb, constant float *parameters) {
+    const uint count = min(uint(parameters[0]), 2u);
+    if (count == 0 || !all(isfinite(rgb)) || any(rgb > 1.0f)) return rgb;
+    // 以可显示颜色选择窗口。仅对命中的负通道做色域映射，扩展高光继续透传。
+    const float3 bounded = max(rgb, 0.0f);
+    if (all(bounded == bounded.rrr)) return rgb;
+    const float3 linear = select(bounded / 12.92f, pow((bounded + 0.055f) / 1.055f, 2.4f), bounded > 0.04045f);
+    const float3 xyz = float3(dot(linear, float3(0.412453f, 0.35758f, 0.180423f)),
+                              dot(linear, float3(0.212671f, 0.71516f, 0.072169f)),
+                              dot(linear, float3(0.019334f, 0.119193f, 0.950227f)))
+        / float3(0.95047f, 1.0f, 1.08883f);
+    const float3 f = select(7.787f * xyz + 16.0f / 116.0f, pow(xyz, 1.0f / 3.0f), xyz > 0.008856f);
+    const float light = 116.0f * f.y - 16.0f;
+    const float2 ab = float2(500.0f * (f.x - f.y), 200.0f * (f.y - f.z));
+    const float chroma = length(ab);
+    if (chroma <= 0.0f) return rgb;
+    const float angle = atan2(ab.y, ab.x);
+    const float hue = (angle < 0.0f ? angle + 6.283185307f : angle) * 57.295779513f;
+    float3 change = 0.0f;
+    for (uint index = 0; index < count; index++) {
+        constant float *window = parameters + 1 + index * 11;
+        const float weight = smoothstep(window[0], window[1], hue)
+            * (1.0f - smoothstep(window[2], window[3], hue))
+            * smoothstep(window[4], window[5], chroma)
+            * (1.0f - smoothstep(window[6], window[7], light));
+        change += weight * float3(window[8], window[9], window[10]);
+    }
+    if (all(change == 0.0f)) return rgb;
+    const float target = angle + change.z * 0.01745329252f;
+    const float2 deltaAB = max(0.0f, chroma + change.y) * float2(cos(target), sin(target)) - ab;
+    float3 output = labWindowLinearRGB(light + change.x, ab + deltaAB);
+    if (!labWindowInGamut(output)) {
+        // 联合收敛明度与色度位移，避免逐通道裁剪造成色相跳变。
+        float lower = 0.0f;
+        float upper = 1.0f;
+        for (uint step = 0; step < 9; ++step) {
+            const float amount = (lower + upper) * 0.5f;
+            if (labWindowInGamut(labWindowLinearRGB(light + change.x * amount, ab + deltaAB * amount))) lower = amount;
+            else upper = amount;
+        }
+        if (lower == 0.0f) return rgb;
+        output = labWindowLinearRGB(light + change.x * lower, ab + deltaAB * lower);
+    }
+    return select(12.92f * output, 1.055f * pow(output, 1.0f / 2.4f) - 0.055f, output > 0.0031308f);
+}
+
 kernel void C7SelectiveHSLPhotographicLabColorWindow(texture2d<half, access::write> outputTexture [[texture(0)]],
                                                      texture2d<half, access::read> inputTexture [[texture(1)]],
                                                      constant float *adjustments [[buffer(0)]],
@@ -320,6 +366,38 @@ kernel void C7SelectiveHSLPhotographicLabColorWindow(texture2d<half, access::wri
     const half3 original = half3(color * alpha);
     const float3 straight = float3(original) / alpha;
     const float3 adjusted = applyLabColorWindow(straight, labHueEdges, labChromaAndHighlightEdges, labLow, labHigh);
+    outputTexture.write(half4(all(adjusted == straight) ? original : half3(adjusted * alpha), input.a), grid);
+}
+
+kernel void C7SelectiveHSLPhotographicLabColorWindowRefined(texture2d<half, access::write> outputTexture [[texture(0)]],
+                                                     texture2d<half, access::read> inputTexture [[texture(1)]],
+                                                     constant float *adjustments [[buffer(0)]],
+                                                     constant float3 &neutralShadows [[buffer(1)]],
+                                                     constant float3 &neutralHighlights [[buffer(2)]],
+                                                     constant float4 &hueEdges [[buffer(3)]],
+                                                     constant float4 &colorAdjustment [[buffer(4)]],
+                                                     constant float3 &windowTone [[buffer(5)]],
+                                                     constant float4 &labHueEdges [[buffer(6)]],
+                                                     constant float4 &labChromaAndHighlightEdges [[buffer(7)]],
+                                                     constant float3 &labLow [[buffer(8)]],
+                                                     constant float3 &labHigh [[buffer(9)]],
+                                                     constant float *labCorrections [[buffer(10)]],
+                                                     uint2 grid [[thread_position_in_grid]]) {
+    if (grid.x >= outputTexture.get_width() || grid.y >= outputTexture.get_height()) return;
+    const half4 input = inputTexture.read(grid);
+    if (input.a <= 0.0h) {
+        outputTexture.write(half4(0.0h), grid);
+        return;
+    }
+    const float alpha = float(input.a);
+    float3 styled = selectiveHSLColor(float3(input.rgb) / alpha, adjustments, true);
+    styled = applySelectiveHSLColorWindow(styled, hueEdges, colorAdjustment, windowTone);
+    const float3 color = finishPhotographicNeutral(styled, neutralShadows, neutralHighlights);
+    // 保留上一段调色原有的半精度边界，使未命中 Lab 色窗的像素直接复用。
+    const half3 original = half3(color * alpha);
+    const float3 straight = float3(original) / alpha;
+    const float3 legacy = applyLabColorWindow(straight, labHueEdges, labChromaAndHighlightEdges, labLow, labHigh);
+    const float3 adjusted = applyLabCorrections(legacy, labCorrections);
     outputTexture.write(half4(all(adjusted == straight) ? original : half3(adjusted * alpha), input.a), grid);
 }
 

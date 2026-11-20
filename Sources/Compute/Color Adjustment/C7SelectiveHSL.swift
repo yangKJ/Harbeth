@@ -66,6 +66,38 @@ public struct C7SelectiveHSL: C7FilterProtocol {
         }
     }
 
+    /// 对显示色域内指定的色相与色度区间，分别校正 Lab 明度、色度和色相。
+    public struct LabColorCorrection: Codable, Hashable, Sendable {
+        public let hueEdges: SIMD4<Float>
+        public let chromaEdges: SIMD2<Float>
+        public let lightnessEdges: SIMD2<Float>
+        /// L* 增量、色度增量、色相角度增量。
+        public let delta: SIMD3<Float>
+
+        public init?(hueEdges: SIMD4<Float>, chromaEdges: SIMD2<Float>,
+                     lightnessEdges: SIMD2<Float>, delta: SIMD3<Float>) {
+            self.hueEdges = hueEdges
+            self.chromaEdges = chromaEdges
+            self.lightnessEdges = lightnessEdges
+            self.delta = delta
+            guard isValid else { return nil }
+        }
+
+        public var isValid: Bool {
+            hueEdges.x >= 0 && hueEdges.x < hueEdges.y && hueEdges.y <= hueEdges.z
+                && hueEdges.z < hueEdges.w && hueEdges.w <= 360
+                && chromaEdges.x > 0 && chromaEdges.x < chromaEdges.y && chromaEdges.y <= 128
+                && lightnessEdges.x >= 0 && lightnessEdges.x < lightnessEdges.y && lightnessEdges.y <= 100
+                && (-20...20).contains(delta.x) && (-40...40).contains(delta.y) && (-45...45).contains(delta.z)
+        }
+
+        fileprivate var parameterValues: [Float] {
+            [hueEdges.x, hueEdges.y, hueEdges.z, hueEdges.w,
+             chromaEdges.x, chromaEdges.y, lightnessEdges.x, lightnessEdges.y,
+             delta.x, delta.y, delta.z]
+        }
+    }
+
     /// 在 sRGB 编码的摄影中性色响应中，按 Lab 明度与色度调节指定色相。
     public struct LabColorWindow: Equatable, Sendable {
         public let hueEdges: SIMD4<Float>
@@ -74,25 +106,29 @@ public struct C7SelectiveHSL: C7FilterProtocol {
         /// 明度 L*、径向色度增量和沿色相切向的 Lab 增量。
         public let low: SIMD3<Float>
         public let high: SIMD3<Float>
+        public let corrections: [LabColorCorrection]
 
         public init?(
             hueEdges: SIMD4<Float>,
             chromaEdges: SIMD2<Float>,
             highlightEdges: SIMD2<Float>,
             low: SIMD3<Float>,
-            high: SIMD3<Float>
+            high: SIMD3<Float>,
+            corrections: [LabColorCorrection] = []
         ) {
             guard hueEdges.x >= 0, hueEdges.x < hueEdges.y, hueEdges.y <= hueEdges.z,
                   hueEdges.z < hueEdges.w, hueEdges.w <= 360,
                   chromaEdges.x >= 0, chromaEdges.x < chromaEdges.y, chromaEdges.y.isFinite,
                   highlightEdges.x >= 0, highlightEdges.x < highlightEdges.y, highlightEdges.y <= 100,
                   low.x >= 0, low.x < high.x, high.x <= 100,
-                  [low.y, low.z, high.y, high.z].allSatisfy({ (-128...128).contains($0) }) else { return nil }
+                  [low.y, low.z, high.y, high.z].allSatisfy({ (-128...128).contains($0) }),
+                  corrections.count <= 2, corrections.allSatisfy(\.isValid) else { return nil }
             self.hueEdges = hueEdges
             self.chromaEdges = chromaEdges
             self.highlightEdges = highlightEdges
             self.low = low
             self.high = high
+            self.corrections = corrections
         }
     }
 
@@ -153,7 +189,10 @@ public struct C7SelectiveHSL: C7FilterProtocol {
         case .photographic: return .compute(kernel: "C7SelectiveHSLPhotographic")
         case .photographicNeutral:
             if highlightNeutralization != nil { return .compute(kernel: "C7SelectiveHSLPhotographicHighlights") }
-            if labColorWindow != nil { return .compute(kernel: "C7SelectiveHSLPhotographicLabColorWindow") }
+            if let lab = labColorWindow {
+                return .compute(kernel: lab.corrections.isEmpty ? "C7SelectiveHSLPhotographicLabColorWindow"
+                    : "C7SelectiveHSLPhotographicLabColorWindowRefined")
+            }
             return .compute(kernel: neutralColorWindow == nil
                 ? "C7SelectiveHSLPhotographicNeutral"
                 : "C7SelectiveHSLPhotographicNeutralColorWindow")
@@ -230,6 +269,10 @@ public struct C7SelectiveHSL: C7FilterProtocol {
                 .init(name: "labLow", index: 8, stage: .compute, value: .float3(lab.low)),
                 .init(name: "labHigh", index: 9, stage: .compute, value: .float3(lab.high)),
             ]
+            if !lab.corrections.isEmpty {
+                bindings.append(.init(name: "labCorrections", index: 10, stage: .compute,
+                    value: .floatArray([Float(lab.corrections.count)] + lab.corrections.flatMap(\.parameterValues))))
+            }
         }
         return bindings
     }
