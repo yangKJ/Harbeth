@@ -103,19 +103,24 @@ public struct C7SelectiveHSL: C7FilterProtocol {
         public let blueEdges: SIMD2<Float>
         public let chromaEdges: SIMD4<Float>
         public let cyanEdges: SIMD2<Float>
+        /// 在较低亮度收紧色度渐退边界，达到完整亮度时回到原边界。
+        public let lowerToneChromaScale: Float
 
         public init?(
             amount: Float,
             greenEdges: SIMD2<Float>,
             blueEdges: SIMD2<Float>,
             chromaEdges: SIMD4<Float>,
-            cyanEdges: SIMD2<Float>
+            cyanEdges: SIMD2<Float>,
+            lowerToneChromaScale: Float = 1
         ) {
             let pairedEdges = [greenEdges, blueEdges, cyanEdges]
             guard (0...1).contains(amount),
                   pairedEdges.allSatisfy({ $0.x >= 0 && $0.x < $0.y && $0.y <= 1 }),
                   chromaEdges.x > 0, chromaEdges.x < chromaEdges.y,
-                  chromaEdges.y <= chromaEdges.z, chromaEdges.z < chromaEdges.w, chromaEdges.w <= 1 else {
+                  chromaEdges.y <= chromaEdges.z, chromaEdges.z < chromaEdges.w, chromaEdges.w <= 1,
+                  lowerToneChromaScale > 0, lowerToneChromaScale <= 1,
+                  chromaEdges.y <= chromaEdges.z * lowerToneChromaScale else {
                 return nil
             }
             self.amount = amount
@@ -123,6 +128,7 @@ public struct C7SelectiveHSL: C7FilterProtocol {
             self.blueEdges = blueEdges
             self.chromaEdges = chromaEdges
             self.cyanEdges = cyanEdges
+            self.lowerToneChromaScale = lowerToneChromaScale
         }
     }
 
@@ -207,11 +213,13 @@ public struct C7SelectiveHSL: C7FilterProtocol {
         }
         if response == .photographicNeutral, let highlight = highlightNeutralization {
             let tone = SIMD4(highlight.greenEdges.x, highlight.greenEdges.y, highlight.blueEdges.x, highlight.blueEdges.y)
-            let strength = SIMD3(highlight.cyanEdges.x, highlight.cyanEdges.y, highlight.amount)
+            let strength = SIMD4(
+                highlight.cyanEdges.x, highlight.cyanEdges.y, highlight.amount, highlight.lowerToneChromaScale
+            )
             bindings += [
                 .init(name: "highlightToneEdges", index: 6, stage: .compute, value: .float4(tone)),
                 .init(name: "highlightChromaEdges", index: 7, stage: .compute, value: .float4(highlight.chromaEdges)),
-                .init(name: "highlightCyanAndAmount", index: 8, stage: .compute, value: .float3(strength)),
+                .init(name: "highlightCyanAndAmount", index: 8, stage: .compute, value: .float4(strength)),
             ]
         }
         if response == .photographicNeutral, let lab = labColorWindow {

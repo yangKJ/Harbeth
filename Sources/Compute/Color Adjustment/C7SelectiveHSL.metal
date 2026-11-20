@@ -194,15 +194,19 @@ kernel void C7SelectiveHSLPhotographicNeutralColorWindow(texture2d<half, access:
     outputTexture.write(half4(half3(color * alpha), input.a), grid);
 }
 
-static float3 neutralizeCoolHighlights(float3 source, float4 tone, float4 chroma, float3 cyanAndAmount) {
+static float3 neutralizeCoolHighlights(float3 source, float4 tone, float4 chroma, float4 cyanAndAmount) {
     const float3 bounded = clamp(source, 0.0f, 1.0f);
     const float span = bounded.b - bounded.r;
     if (bounded.g <= tone.x || bounded.b <= tone.z || span <= chroma.x || span >= chroma.w) return source;
 
     const float cyan = (bounded.g - bounded.r) / span;
     if (cyan <= cyanAndAmount.x) return source;
-    const float weight = smoothstep(tone.x, tone.y, bounded.g) * smoothstep(tone.z, tone.w, bounded.b)
-        * smoothstep(chroma.x, chroma.y, span) * (1.0f - smoothstep(chroma.z, chroma.w, span))
+    const float green = smoothstep(tone.x, tone.y, bounded.g);
+    // 在较低亮度保护有意保留的浅青，随亮度回到原高光色度范围。
+    const float chromaScale = mix(cyanAndAmount.w, 1.0f, green * green);
+    if (span >= chroma.w * chromaScale) return source;
+    const float weight = green * smoothstep(tone.z, tone.w, bounded.b) * smoothstep(chroma.x, chroma.y, span)
+        * (1.0f - smoothstep(chroma.z * chromaScale, chroma.w * chromaScale, span))
         * smoothstep(cyanAndAmount.x, cyanAndAmount.y, cyan) * cyanAndAmount.z;
     // 仅增加较低通道，保留蓝通道及原有扩展高光。
     return source + weight * max(bounded.b - bounded, 0.0f);
@@ -218,7 +222,7 @@ kernel void C7SelectiveHSLPhotographicHighlights(texture2d<half, access::write> 
                                                 constant float3 &windowTone [[buffer(5)]],
                                                 constant float4 &highlightToneEdges [[buffer(6)]],
                                                 constant float4 &highlightChromaEdges [[buffer(7)]],
-                                                constant float3 &highlightCyanAndAmount [[buffer(8)]],
+                                                constant float4 &highlightCyanAndAmount [[buffer(8)]],
                                                 uint2 grid [[thread_position_in_grid]]) {
     if (grid.x >= outputTexture.get_width() || grid.y >= outputTexture.get_height()) return;
     const half4 input = inputTexture.read(grid);

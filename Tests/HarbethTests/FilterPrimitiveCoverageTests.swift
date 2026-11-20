@@ -1055,6 +1055,33 @@ final class FilterPrimitiveCoverageTests: XCTestCase {
         }
     }
 
+    func testPhotographicHighlightNeutralizationNarrowsChromaOnlyBelowFullTone() throws {
+        let source = try makeRGBA16FloatTexture(width: 3, pixels: [
+            0.65, 0.73, 0.80, 1,
+            0.60, 0.74, 0.88, 1,
+            0.78, 0.94, 1.09, 1,
+        ])
+        let render: (Float) throws -> [Float] = { scale in
+            let window = try XCTUnwrap(C7SelectiveHSL.HighlightNeutralization(
+                amount: 0.65,
+                greenEdges: SIMD2(0.45, 0.91),
+                blueEdges: SIMD2(0.58, 0.84),
+                chromaEdges: SIMD4(0.012, 0.065, 0.25, 0.42),
+                cyanEdges: SIMD2(0.25, 0.51),
+                lowerToneChromaScale: scale
+            ))
+            let filter = C7SelectiveHSL(highlightNeutralization: window)
+            let frame = try HarbethIO(element: source, filter: filter).renderTexture(profile: .exportQuality)
+            return try self.rgba16FloatPixels(in: frame)
+        }
+        let wide = try render(1)
+        let narrow = try render(0.29)
+        XCTAssertGreaterThan(narrow[0], 0.69)
+        XCTAssertLessThan(narrow[4], wide[4] - 0.03)
+        XCTAssertEqual(narrow[4], 0.60, accuracy: 0.002)
+        XCTAssertEqual(Array(narrow.dropFirst(8)), Array(wide.dropFirst(8)))
+    }
+
     func testPhotographicNeutralWindowFadesOutAtHighSaturation() throws {
         let hue = try XCTUnwrap(C7SelectiveHSL.HueWindow(
             hueEdges: SIMD4<Float>(184, 195, 212, 224),
