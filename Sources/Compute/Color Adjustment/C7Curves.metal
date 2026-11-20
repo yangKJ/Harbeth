@@ -8,7 +8,7 @@
 #include <metal_stdlib>
 using namespace metal;
 
-float curveInterpolation(float value, constant float* points, int pointCount, bool extrapolates) {
+float curveInterpolation(float value, constant float* points, int pointCount, uint extrapolation) {
     if (pointCount == 0) return value;
     if (pointCount == 1) return points[1];
     int upperIndex = 1;
@@ -23,7 +23,8 @@ float curveInterpolation(float value, constant float* points, int pointCount, bo
     float y1 = points[upperIndex * 2 + 1];
     if (x1 == x0) return y0;
     float t = (value - x0) / (x1 - x0);
-    if (!extrapolates) t = clamp(t, 0.0, 1.0);
+    if (extrapolation == 0) t = clamp(t, 0.0, 1.0);
+    else if (extrapolation == 2) t = max(t, 0.0f);
     return mix(y0, y1, t);
 }
 
@@ -83,13 +84,16 @@ static float curveTangent(constant float *points, int count, int index, constant
     return offset > 0 ? preparedTangents[offset + index] : curveSlope(points, count, index);
 }
 
-static float curveCubic(float value, constant float *points, int count, bool extrapolates,
+static float curveCubic(float value, constant float *points, int count, uint extrapolation,
                         constant float *preparedTangents, int offset) {
     if (count < 2) return value;
-    if (offset == -1 && isfinite(value)) return extrapolates ? value : clamp(value, 0.0f, 1.0f);
-    if (value < points[0]) return extrapolates ? points[1] + (value - points[0]) * curveTangent(points, count, 0, preparedTangents, offset) : points[1];
+    if (offset == -1 && isfinite(value)) {
+        if (extrapolation == 1) return value;
+        return extrapolation == 2 ? max(value, 0.0f) : clamp(value, 0.0f, 1.0f);
+    }
+    if (value < points[0]) return extrapolation == 1 ? points[1] + (value - points[0]) * curveTangent(points, count, 0, preparedTangents, offset) : points[1];
     if (value > points[(count - 1) * 2]) {
-        return extrapolates ? points[(count - 1) * 2 + 1] + (value - points[(count - 1) * 2]) * curveTangent(points, count, count - 1, preparedTangents, offset)
+        return extrapolation != 0 ? points[(count - 1) * 2 + 1] + (value - points[(count - 1) * 2]) * curveTangent(points, count, count - 1, preparedTangents, offset)
         : points[(count - 1) * 2 + 1];
     }
     int index = 0;
@@ -118,11 +122,11 @@ static float curveCubic(float value, constant float *points, int count, bool ext
     return clamp(y, min(y0, y1), max(y0, y1));
 }
 
-static float curveValue(float value, constant float *points, int count, bool legacy, bool cubic, bool extrapolates,
+static float curveValue(float value, constant float *points, int count, bool legacy, bool cubic, uint extrapolation,
                         constant float *preparedTangents, int offset) {
     if (count < 2) return value;
     if (legacy) return curveInterpolationLegacy(value, points, count);
-    return cubic ? curveCubic(value, points, count, extrapolates, preparedTangents, offset) : curveInterpolation(value, points, count, extrapolates);
+    return cubic ? curveCubic(value, points, count, extrapolation, preparedTangents, offset) : curveInterpolation(value, points, count, extrapolation);
 }
 
 static bool curveIsUnitIdentity(constant float *points, int count) {
@@ -131,7 +135,7 @@ static bool curveIsUnitIdentity(constant float *points, int count) {
 
 static float4 c7ApplyCurves(float4 input, float4 counts, constant float *rgbPoints,
                             constant float *redPoints, constant float *greenPoints, constant float *bluePoints,
-                            bool legacy, bool cubic, bool extrapolates, bool channelsFirst,
+                            bool legacy, bool cubic, uint extrapolation, bool channelsFirst,
                             constant float *preparedTangents = nullptr) {
     // 新模式按直色值调节后恢复预乘；旧模式保留已持久化像素语义。
     const float alpha = float(input.a);
@@ -142,22 +146,23 @@ static float4 c7ApplyCurves(float4 input, float4 counts, constant float *rgbPoin
     if (all(counts < float4(2))) return input;
     if (curveIsUnitIdentity(rgbPoints, int(counts.x)) && curveIsUnitIdentity(redPoints, int(counts.y))
         && curveIsUnitIdentity(greenPoints, int(counts.z)) && curveIsUnitIdentity(bluePoints, int(counts.w))
-        && ((!legacy && extrapolates) || (all(color >= 0.0f) && all(color <= 1.0f)))) return input;
+        && ((!legacy && extrapolation == 1)
+            || (all(color >= 0.0f) && ((!legacy && extrapolation == 2) || all(color <= 1.0f))))) return input;
     const int4 offsets = cubic
         ? int4(preparedTangents[0], preparedTangents[1], preparedTangents[2], preparedTangents[3])
         : int4(0);
     if (!channelsFirst) {
-        color.r = curveValue(color.r, rgbPoints, int(counts.x), legacy, cubic, extrapolates, preparedTangents, offsets.x);
-        color.g = curveValue(color.g, rgbPoints, int(counts.x), legacy, cubic, extrapolates, preparedTangents, offsets.x);
-        color.b = curveValue(color.b, rgbPoints, int(counts.x), legacy, cubic, extrapolates, preparedTangents, offsets.x);
+        color.r = curveValue(color.r, rgbPoints, int(counts.x), legacy, cubic, extrapolation, preparedTangents, offsets.x);
+        color.g = curveValue(color.g, rgbPoints, int(counts.x), legacy, cubic, extrapolation, preparedTangents, offsets.x);
+        color.b = curveValue(color.b, rgbPoints, int(counts.x), legacy, cubic, extrapolation, preparedTangents, offsets.x);
     }
-    color.r = curveValue(color.r, redPoints, int(counts.y), legacy, cubic, extrapolates, preparedTangents, offsets.y);
-    color.g = curveValue(color.g, greenPoints, int(counts.z), legacy, cubic, extrapolates, preparedTangents, offsets.z);
-    color.b = curveValue(color.b, bluePoints, int(counts.w), legacy, cubic, extrapolates, preparedTangents, offsets.w);
+    color.r = curveValue(color.r, redPoints, int(counts.y), legacy, cubic, extrapolation, preparedTangents, offsets.y);
+    color.g = curveValue(color.g, greenPoints, int(counts.z), legacy, cubic, extrapolation, preparedTangents, offsets.z);
+    color.b = curveValue(color.b, bluePoints, int(counts.w), legacy, cubic, extrapolation, preparedTangents, offsets.w);
     if (channelsFirst) {
-        color.r = curveValue(color.r, rgbPoints, int(counts.x), legacy, cubic, extrapolates, preparedTangents, offsets.x);
-        color.g = curveValue(color.g, rgbPoints, int(counts.x), legacy, cubic, extrapolates, preparedTangents, offsets.x);
-        color.b = curveValue(color.b, rgbPoints, int(counts.x), legacy, cubic, extrapolates, preparedTangents, offsets.x);
+        color.r = curveValue(color.r, rgbPoints, int(counts.x), legacy, cubic, extrapolation, preparedTangents, offsets.x);
+        color.g = curveValue(color.g, rgbPoints, int(counts.x), legacy, cubic, extrapolation, preparedTangents, offsets.x);
+        color.b = curveValue(color.b, rgbPoints, int(counts.x), legacy, cubic, extrapolation, preparedTangents, offsets.x);
     }
     if (cubic) color *= alpha;
     return float4(color, input.a);
@@ -176,7 +181,7 @@ kernel void C7Curves(texture2d<float, access::write> outputTexture [[texture(0)]
                      uint2 grid [[thread_position_in_grid]]) {
     if (grid.x >= outputTexture.get_width() || grid.y >= outputTexture.get_height()) return;
     const float4 result = c7ApplyCurves(inputTexture.read(grid), pointCounts, rgbPoints, redPoints, greenPoints, bluePoints,
-                                        false, false, extrapolation[0] >= 0.5f, compositionOrder[0] >= 0.5f);
+                                        false, false, uint(extrapolation[0]), compositionOrder[0] >= 0.5f);
     outputTexture.write(halfOutput > 0.5f ? float4(half4(result)) : result, grid);
 }
 
@@ -194,7 +199,7 @@ kernel void C7CurvesCubic(texture2d<float, access::write> outputTexture [[textur
                           uint2 grid [[thread_position_in_grid]]) {
     if (grid.x >= outputTexture.get_width() || grid.y >= outputTexture.get_height()) return;
     const float4 result = c7ApplyCurves(inputTexture.read(grid), pointCounts, rgbPoints, redPoints, greenPoints, bluePoints,
-                                        false, true, extrapolation[0] >= 0.5f, compositionOrder[0] >= 0.5f, preparedTangents);
+                                        false, true, uint(extrapolation[0]), compositionOrder[0] >= 0.5f, preparedTangents);
     outputTexture.write(halfOutput > 0.5f ? float4(half4(result)) : result, grid);
 }
 
@@ -209,7 +214,7 @@ kernel void C7CurvesLegacy(texture2d<float, access::write> outputTexture [[textu
                            uint2 grid [[thread_position_in_grid]]) {
     if (grid.x >= outputTexture.get_width() || grid.y >= outputTexture.get_height()) return;
     const float4 result = c7ApplyCurves(inputTexture.read(grid), pointCounts, rgbPoints, redPoints, greenPoints, bluePoints,
-                                        true, false, false, false);
+                                        true, false, 0, false);
     outputTexture.write(halfOutput > 0.5f ? float4(half4(result)) : result, grid);
 }
 
@@ -225,6 +230,6 @@ kernel void C7CurvesLegacyOrdered(texture2d<float, access::write> outputTexture 
                                   uint2 grid [[thread_position_in_grid]]) {
     if (grid.x >= outputTexture.get_width() || grid.y >= outputTexture.get_height()) return;
     const float4 result = c7ApplyCurves(inputTexture.read(grid), pointCounts, rgbPoints, redPoints, greenPoints, bluePoints,
-                                        true, false, false, compositionOrder[0] >= 0.5f);
+                                        true, false, 0, compositionOrder[0] >= 0.5f);
     outputTexture.write(halfOutput > 0.5f ? float4(half4(result)) : result, grid);
 }

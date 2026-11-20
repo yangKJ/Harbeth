@@ -542,6 +542,23 @@ final class FilterPrimitiveCoverageTests: XCTestCase {
         XCTAssertEqual(filter.kernelPixelContract.dynamicRangeBehavior, .preservesExtendedRange)
     }
 
+    func testCurvesClampLowerAndExtrapolateUpperEndpoint() throws {
+        let source = try makeRGBA16FloatTexture(width: 2, pixels: [-0.5, 2, 0.5, 1, -0.25, 0.8, 0.1, 0.4])
+        let mode = C7Curves.Extrapolation.linearAboveUpperEndpoint
+        for interpolation in [C7Curves.Interpolation.linear, .shapePreserving] {
+            let filter = C7Curves(interpolation: interpolation, extrapolation: mode)
+            let output: MTLTexture = try HarbethIO(element: source, filter: filter).output()
+            let pixels = try rgba16FloatPixels(in: output)
+            let expected: [Float] = [0, 2, 0.5, 1, 0, 0.8, 0.1, 0.4]
+            for (actual, target) in zip(pixels, expected) {
+                XCTAssertEqual(actual, target, accuracy: 0.002)
+            }
+        }
+        let points = [C7Point2D(x: 0, y: 0.2), C7Point2D(x: 1, y: 0.9)]
+        XCTAssertEqual(C7Curves.shapePreservingValue(-0.5, points: points, extrapolation: mode), 0.2, accuracy: 0.000001)
+        XCTAssertEqual(C7Curves.shapePreservingValue(1.5, points: points, extrapolation: mode), 1.25, accuracy: 0.000001)
+    }
+
     func testCurvesMultiPointSegmentsMapActualPixelsContinuously() throws {
         let sourceValues: [UInt8] = [63, 64, 65, 127, 128, 191, 192, 193]
         let sourcePixels = sourceValues.flatMap { [$0, $0, $0, UInt8.max] }

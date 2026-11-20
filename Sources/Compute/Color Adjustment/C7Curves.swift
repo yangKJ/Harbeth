@@ -30,6 +30,8 @@ public struct C7Curves: C7FilterProtocol {
     public enum Extrapolation: Float, Codable, Equatable, Sendable {
         case clampToEndpoints = 0
         case linear = 1
+        /// 低于首点时使用端点，高于末点时沿切线外推。
+        case linearAboveUpperEndpoint = 2
     }
 
     public enum CompositionOrder: Float, Codable, Equatable, Sendable {
@@ -255,7 +257,7 @@ public struct C7Curves: C7FilterProtocol {
             return extrapolation == .linear ? a.y + (value - a.x) * delta : a.y
         }
         if value > points[points.count - 1].x {
-            return extrapolation == .linear ? b.y + (value - b.x) * delta : b.y
+            return extrapolation != .clampToEndpoints ? b.y + (value - b.x) * delta : b.y
         }
         let t = min(1, max(0, (value - a.x) / h))
         func slope(_ i: Int) -> Float {
