@@ -1000,7 +1000,7 @@ final class FilterPrimitiveCoverageTests: XCTestCase {
         XCTAssertEqual(legacyPlan.passes.first?.functionIdentity.primaryName, "C7SelectiveHSLPhotographicNeutral")
         XCTAssertEqual(plan.passes.first?.functionIdentity.primaryName, "C7SelectiveHSLPhotographicNeutralColorWindow")
         XCTAssertEqual(plan.passes.count, 1)
-        XCTAssertEqual(filter.kernelParameterBindings.map(\.index), [0, 1, 2, 3, 4, 5])
+        XCTAssertEqual(filter.kernelParameterBindings.map(\.index), [0, 1, 2, 3, 4, 5, 12])
         XCTAssertEqual(filter.kernelPixelContract, prior.kernelPixelContract)
 
         let old = try HarbethIO(element: source, filter: prior).renderTexture(profile: .exportQuality)
@@ -1144,6 +1144,37 @@ final class FilterPrimitiveCoverageTests: XCTestCase {
         XCTAssertEqual(Array(fitted[4..<12]), Array(original[4..<12]))
         for c in 0..<4 {
             XCTAssertEqual(fitted[12 + c] * 2, fitted[c], accuracy: 0.002)
+        }
+    }
+
+    func testPhotographicColorWindowCanDesaturateOnlyBrighterSamples() throws {
+        let hue = try XCTUnwrap(C7SelectiveHSL.HueWindow(
+            hueEdges: SIMD4(187, 195, 211, 224), chromaEdges: SIMD2(0.29, 0.44), rotation: 0.15
+        ))
+        let source = try makeRGBA16FloatTexture(width: 4, pixels: [
+            0.18, 0.38, 0.58, 1,
+            0.38, 0.63, 0.88, 1,
+            0.00, 0.60, 1.00, 1,
+            0.19, 0.315, 0.44, 0.5,
+        ])
+        let apply: (SIMD3<Float>?) throws -> [Float] = { correction in
+            let window = try XCTUnwrap(C7SelectiveHSL.NeutralColorWindow(
+                hueWindow: hue, saturationDelta: -0.033,
+                saturationFadeRange: SIMD2(0.86, 0.98), lightnessDelta: 0.004,
+                lightnessSaturationAdjustment: correction
+            ))
+            let stage = C7SelectiveHSL(response: .photographicNeutral, neutralColorWindow: window)
+            let result = try HarbethIO(element: source, filter: stage).renderTexture(profile: .exportQuality)
+            return try self.rgba16FloatPixels(in: result)
+        }
+        let baseline = try apply(nil)
+        let tuned = try apply(SIMD3(0.445, 0.615, -0.105))
+        XCTAssertEqual(Array(tuned[0..<4]), Array(baseline[0..<4]))
+        XCTAssertEqual(Array(tuned[8..<12]), Array(baseline[8..<12]))
+        XCTAssertGreaterThan(tuned[4], baseline[4] + 0.025)
+        XCTAssertLessThan(tuned[6], baseline[6] - 0.025)
+        for channel in 0..<4 {
+            XCTAssertEqual(tuned[12 + channel] * 2, tuned[4 + channel], accuracy: 0.002)
         }
     }
 

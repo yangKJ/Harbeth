@@ -47,22 +47,30 @@ public struct C7SelectiveHSL: C7FilterProtocol {
         /// HSL 饱和度从此区间逐渐退出局部校正。
         public let saturationFadeRange: SIMD2<Float>?
         public let lightnessDelta: Float
+        /// 前两项为亮度渐入边界，第三项为附加饱和度偏移。
+        public let lightnessSaturationAdjustment: SIMD3<Float>?
 
         public init?(
             hueWindow: HueWindow,
             saturationDelta: Float,
             saturationFadeRange: SIMD2<Float>? = nil,
-            lightnessDelta: Float = 0
+            lightnessDelta: Float = 0,
+            lightnessSaturationAdjustment: SIMD3<Float>? = nil
         ) {
             guard (-1...1).contains(saturationDelta), (-1...1).contains(lightnessDelta) else { return nil }
             if let saturationFadeRange {
                 guard saturationFadeRange.x >= 0, saturationFadeRange.x < saturationFadeRange.y,
                       saturationFadeRange.y <= 1 else { return nil }
             }
+            if let adjustment = lightnessSaturationAdjustment {
+                guard adjustment.x >= 0, adjustment.x < adjustment.y, adjustment.y <= 1,
+                      (-1...1).contains(adjustment.z) else { return nil }
+            }
             self.hueWindow = hueWindow
             self.saturationDelta = saturationDelta
             self.saturationFadeRange = saturationFadeRange
             self.lightnessDelta = lightnessDelta
+            self.lightnessSaturationAdjustment = lightnessSaturationAdjustment
         }
     }
 
@@ -303,6 +311,12 @@ public struct C7SelectiveHSL: C7FilterProtocol {
                     index: 5,
                     stage: .compute,
                     value: .float3(SIMD3(fade.x, fade.y, window?.lightnessDelta ?? 0))
+                ))
+                bindings.append(.init(
+                    name: "windowLightnessSaturation",
+                    index: 12,
+                    stage: .compute,
+                    value: .float3(window?.lightnessSaturationAdjustment ?? .zero)
                 ))
             }
         }
