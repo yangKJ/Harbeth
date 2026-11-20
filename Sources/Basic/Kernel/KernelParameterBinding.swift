@@ -119,6 +119,11 @@ public struct KernelParameterBinding: Sendable, Codable, Equatable, Hashable {
     public let stage: KernelBindingStage
     public let value: KernelParameterBindingValue
     public let required: Bool
+    private var reusableBuffer: KernelParameterBufferReference? = nil
+
+    private enum CodingKeys: String, CodingKey {
+        case name, index, stage, value, required
+    }
 
     public init(name: String, index: Int, stage: KernelBindingStage, value: KernelParameterBindingValue, required: Bool = true) {
         self.name = name
@@ -126,6 +131,32 @@ public struct KernelParameterBinding: Sendable, Codable, Equatable, Hashable {
         self.stage = stage
         self.value = value
         self.required = required
+    }
+
+    /// 让同一冻结绑定的副本按需共享只读 GPU 参数。序列化身份仍由数值决定。
+    public func reusingBuffer() -> Self {
+        guard stage == .compute, value.byteCount > 4_096, reusableBuffer == nil else { return self }
+        var binding = self
+        binding.reusableBuffer = KernelParameterBufferReference()
+        return binding
+    }
+
+    public static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.name == rhs.name && lhs.index == rhs.index && lhs.stage == rhs.stage
+            && lhs.value == rhs.value && lhs.required == rhs.required
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(name)
+        hasher.combine(index)
+        hasher.combine(stage)
+        hasher.combine(value)
+        hasher.combine(required)
+    }
+
+    func parameterBuffer(on device: MTLDevice, make: () -> MTLBuffer?) -> MTLBuffer? {
+        guard let reusableBuffer else { return make() }
+        return reusableBuffer.resolve(on: device, make: make)
     }
 
     public var fingerprint: String {
@@ -140,14 +171,33 @@ public struct KernelParameterBinding: Sendable, Codable, Equatable, Hashable {
     }
 }
 
+private final class KernelParameterBufferReference: @unchecked Sendable {
+    private let lock = NSLock()
+    private var buffer: MTLBuffer?
+
+    func resolve(on device: MTLDevice, make: () -> MTLBuffer?) -> MTLBuffer? {
+        lock.withLock {
+            if let buffer, buffer.device === device { return buffer }
+            guard let created = make() else { return nil }
+            buffer = created
+            return created
+        }
+    }
+}
+
 enum KernelBindingEncoder {
-    static func encode(_ bindings: [KernelParameterBinding], stage: KernelBindingStage, on encoder: MTLCommandEncoder) throws {
+    static func encode(
+        _ bindings: [KernelParameterBinding],
+        stage: KernelBindingStage,
+        on encoder: MTLCommandEncoder,
+        commandBuffer: MTLCommandBuffer? = nil
+    ) throws {
         for binding in bindings where binding.stage == stage {
-            try encode(binding, on: encoder)
+            try encode(binding, on: encoder, commandBuffer: commandBuffer)
         }
     }
 
-    private static func encode(_ binding: KernelParameterBinding, on encoder: MTLCommandEncoder) throws {
+    private static func encode(_ binding: KernelParameterBinding, on encoder: MTLCommandEncoder, commandBuffer: MTLCommandBuffer?) throws {
         if case .matrix3x3(let matrix) = binding.value, matrix.values.count != 9 {
             throw HarbethError.configurationInvalid("3×3 矩阵必须包含九个元素")
         }
@@ -163,12 +213,20 @@ enum KernelBindingEncoder {
         encode(binding.value, index: binding.index) { bytes, length, _ in
             if length > 4_096 {
                 requiresBuffer = true
-                parameterBuffer = encoder.device.makeBuffer(bytes: bytes, length: length, options: .storageModeShared)
+                parameterBuffer = binding.parameterBuffer(on: encoder.device) {
+                    encoder.device.makeBuffer(bytes: bytes, length: length, options: .storageModeShared)
+                }
             }
         }
         if requiresBuffer {
             guard let parameterBuffer else {
                 throw HarbethError.configurationInvalid("无法分配滤镜参数 buffer")
+            }
+            if let commandBuffer, !commandBuffer.retainedReferences {
+                // 计划可能在 GPU 完成前被释放，非保留命令需要自己的资源引用。
+                commandBuffer.addCompletedHandler { [parameterBuffer] _ in
+                    withExtendedLifetime(parameterBuffer) {}
+                }
             }
             switch binding.stage {
             case .compute:

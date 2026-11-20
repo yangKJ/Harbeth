@@ -4,6 +4,32 @@ import CoreGraphics
 @testable import Harbeth
 
 final class KernelExecutionPlanTests: XCTestCase {
+    func testFrozenParameterCopiesReuseOneBufferWithoutChangingSerializedValue() throws {
+        guard let device = MTLCreateSystemDefaultDevice() else { throw XCTSkip("Metal 不可用") }
+        let shadow = KernelParameterBinding(name: "long", index: 0, stage: .compute, value: .floatArray(Array(repeating: 0.25, count: 2048)))
+        let prepared = shadow.reusingBuffer()
+        let copy = prepared
+        var allocations = 0
+        func allocate() -> MTLBuffer? {
+            allocations += 1
+            return device.makeBuffer(length: 8192, options: .storageModeShared)
+        }
+
+        let first = try XCTUnwrap(prepared.parameterBuffer(on: device, make: allocate))
+        for _ in 0..<66 {
+            XCTAssertTrue(first === copy.parameterBuffer(on: device, make: allocate))
+        }
+        XCTAssertEqual(allocations, 1)
+        XCTAssertEqual(prepared, shadow)
+        XCTAssertEqual(prepared.fingerprint, shadow.fingerprint)
+        XCTAssertEqual(Set([prepared, shadow]).count, 1)
+
+        let restored = try JSONDecoder().decode(KernelParameterBinding.self, from: JSONEncoder().encode(prepared))
+        XCTAssertEqual(restored, shadow)
+        XCTAssertFalse(first === restored.parameterBuffer(on: device, make: allocate))
+        XCTAssertEqual(allocations, 2)
+    }
+
     func testLargeKernelParameterArrayUsesBufferBinding() throws {
         guard let device = MTLCreateSystemDefaultDevice() else { throw XCTSkip("Metal 不可用") }
         let library = try device.makeLibrary(source: """
@@ -20,22 +46,32 @@ final class KernelExecutionPlanTests: XCTestCase {
         descriptor.usage = [.shaderRead, .shaderWrite]
         let texture = try XCTUnwrap(device.makeTexture(descriptor: descriptor))
         let queue = try XCTUnwrap(device.makeCommandQueue())
-        let command = try XCTUnwrap(queue.makeCommandBuffer())
-        let encoder = try XCTUnwrap(command.makeComputeCommandEncoder())
-        encoder.setComputePipelineState(pipeline)
-        encoder.setTexture(texture, index: 0)
         var values = Array(repeating: Float.zero, count: 2048)
         values[0] = 0.25
         values[2047] = 0.75
-        try KernelBindingEncoder.encode([.init(name: "large", index: 0, stage: .compute, value: .floatArray(values))], stage: .compute, on: encoder)
-        encoder.dispatchThreads(MTLSize(width: 1, height: 1, depth: 1), threadsPerThreadgroup: MTLSize(width: 1, height: 1, depth: 1))
-        encoder.endEncoding()
-        command.commit()
-        command.waitUntilCompleted()
-        if let error = command.error { throw error }
-        var pixel = Array(repeating: Float.zero, count: 4)
-        pixel.withUnsafeMutableBytes { texture.getBytes($0.baseAddress!, bytesPerRow: 16, from: MTLRegionMake2D(0, 0, 1, 1), mipmapLevel: 0) }
-        XCTAssertEqual(pixel, [0.25, 0.75, 0, 1])
+        for retained in [true, false] {
+            let settings = MTLCommandBufferDescriptor()
+            settings.retainedReferences = retained
+            let command = try XCTUnwrap(queue.makeCommandBuffer(descriptor: settings))
+            try autoreleasepool {
+                let encoder = try XCTUnwrap(command.makeComputeCommandEncoder())
+                encoder.setComputePipelineState(pipeline)
+                encoder.setTexture(texture, index: 0)
+                let raw = KernelParameterBinding(name: "large", index: 0, stage: .compute, value: .floatArray(values))
+                let binding = retained ? raw : raw.reusingBuffer()
+                try KernelBindingEncoder.encode([binding], stage: .compute, on: encoder, commandBuffer: command)
+                encoder.dispatchThreads(MTLSize(width: 1, height: 1, depth: 1), threadsPerThreadgroup: MTLSize(width: 1, height: 1, depth: 1))
+                encoder.endEncoding()
+            }
+            command.commit()
+            command.waitUntilCompleted()
+            if let error = command.error { throw error }
+            var pixel = Array(repeating: Float.zero, count: 4)
+            pixel.withUnsafeMutableBytes {
+                texture.getBytes($0.baseAddress!, bytesPerRow: 16, from: MTLRegionMake2D(0, 0, 1, 1), mipmapLevel: 0)
+            }
+            XCTAssertEqual(pixel, [0.25, 0.75, 0, 1])
+        }
     }
 
 

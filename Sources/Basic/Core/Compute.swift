@@ -359,7 +359,7 @@ struct Compute {
             }
         } else {
             do {
-                try KernelBindingEncoder.encode(parameterBindings, stage: .compute, on: computeEncoder)
+                try KernelBindingEncoder.encode(parameterBindings, stage: .compute, on: computeEncoder, commandBuffer: commandBuffer)
             } catch {
                 computeEncoder.endEncoding()
                 throw error
