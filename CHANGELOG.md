@@ -28,6 +28,8 @@ Harbeth 的公开变更按时间倒序记录，格式遵循 [Keep a Changelog](h
 
 - `C7WhiteBalance` 在预乘 RGB 上求值，并可与相邻基础点运算共享一次派发，保留配方顺序和各步纹理格式舍入。
 
+- 内置 CUBE 可在实际 HLUT 摘要和输入域匹配时复用打包时生成的旧指纹。未注册文件和不匹配的条目继续完整校验并计算指纹。
+
 #### Removed
 
 - 移除命名 CUBE 的算子替代注册接口，`C7ColorCube` 统一通过原生 3D LUT 查表。

@@ -38,15 +38,32 @@ public struct C7ColorCube: C7FilterPipelineProtocol {
         fileprivate let isValid: Bool
 
         public init(dimension: Int, data: Data, domainMinimum: SIMD3<Float> = .zero, domainMaximum: SIMD3<Float> = SIMD3<Float>(repeating: 1)) {
+            self.init(dimension: dimension, data: data, domainMinimum: domainMinimum, domainMaximum: domainMaximum,
+                verifiedIdentity: nil)
+        }
+
+        fileprivate init(
+            dimension: Int,
+            data: Data,
+            domainMinimum: SIMD3<Float>,
+            domainMaximum: SIMD3<Float>,
+            verifiedIdentity: String?
+        ) {
             self.dimension = dimension
             self.data = data
             self.domainMinimum = domainMinimum
             self.domainMaximum = domainMaximum
             self.isValid = Self.validateStorage(dimension: dimension, data: data, minimum: domainMinimum, maximum: domainMaximum)
-            self.identity = Self.makeIdentity(dimension: dimension, data: data, domainMinimum: domainMinimum, domainMaximum: domainMaximum)
+            self.identity = verifiedIdentity ?? Self.makeIdentity(dimension: dimension, data: data,
+                domainMinimum: domainMinimum, domainMaximum: domainMaximum)
         }
     }
-    
+
+    /// 只为构建时已校验的内置资源包注册指纹表；外部导入不应注册。
+    public static func registerBundledLookupManifest(in bundle: Bundle) {
+        BundledLookupManifests.shared.register(bundle)
+    }
+
     /// Intensity range, used to adjust the mixing ratio of filters and sources.
     @ZeroOneRange public var intensity: Float = R.intensityRange.value
     public private(set) var resourceName: String?
@@ -109,7 +126,7 @@ public struct C7ColorCube: C7FilterPipelineProtocol {
         self.resourceName = cubeName
         self.resourceBundleName = bundle.bundleURL.deletingPathExtension().lastPathComponent
         if let file = Resource.namedFile(cubeName, bundle: bundle) {
-            loadFile(at: file.url, compact: file.compact)
+            loadFile(at: file.url, compact: file.compact, bundledResource: (bundle, cubeName))
         }
     }
 
@@ -139,9 +156,13 @@ public struct C7ColorCube: C7FilterPipelineProtocol {
         setResource(cubeResource)
     }
 
-    private mutating func loadFile(at url: URL, compact: Bool) {
+    private mutating func loadFile(
+        at url: URL,
+        compact: Bool,
+        bundledResource: (bundle: Bundle, name: String)? = nil
+    ) {
         do {
-            let prepared = try PreparedColorCube.load(from: url, compact: compact)
+            let prepared = try PreparedColorCube.load(from: url, compact: compact, bundledResource: bundledResource)
             lutTexture = prepared.texture
             resourceIdentity = prepared.identity
             domainMinimum = prepared.domainMinimum
@@ -226,6 +247,82 @@ private struct ColorCubeResourceFailure: BlitProtocol {
     }
 }
 
+private final class BundledLookupManifests: @unchecked Sendable {
+    struct Entry: Decodable {
+        let resourceName: String
+        let dimension: Int
+        let domainMinimum: [Float]
+        let domainMaximum: [Float]
+        let float32SHA256: String
+        let resourceIdentity: String
+
+        func verifiedIdentity(dimension: Int, minimum: SIMD3<Float>, maximum: SIMD3<Float>, checksum: Data) -> String? {
+            guard self.dimension == dimension,
+                  domainMinimum == [minimum.x, minimum.y, minimum.z],
+                  domainMaximum == [maximum.x, maximum.y, maximum.z],
+                  float32SHA256 == checksum.map({ String(format: "%02x", $0) }).joined() else {
+                return nil
+            }
+            let prefix = "cube|\(dimension)|\(minimum)|\(maximum)|"
+            guard resourceIdentity.hasPrefix(prefix),
+                  let fingerprint = UInt64(resourceIdentity.dropFirst(prefix.count), radix: 16),
+                  resourceIdentity == prefix + String(fingerprint, radix: 16) else {
+                return nil
+            }
+            return resourceIdentity
+        }
+    }
+
+    private struct Manifest: Decodable {
+        let schemaVersion: Int
+        let assets: [Entry]
+    }
+
+    private enum State {
+        case registered
+        case loaded([String: Entry])
+    }
+
+    static let shared = BundledLookupManifests()
+    private let lock = NSLock()
+    private var bundles: [URL: State] = [:]
+
+    func register(_ bundle: Bundle) {
+        let key = bundle.bundleURL.standardizedFileURL
+        lock.withLock {
+            if bundles[key] == nil { bundles[key] = .registered }
+        }
+    }
+
+    func entry(in bundle: Bundle, name: String) -> Entry? {
+        let key = bundle.bundleURL.standardizedFileURL
+        guard let state = lock.withLock({ bundles[key] }) else { return nil }
+        if case .loaded(let entries) = state { return entries[name] }
+
+        // 命名资源已经定位后才读取校验表，避免把文件解析移到应用启动。
+        let entries = loadEntries(from: bundle)
+        return lock.withLock {
+            if case .loaded(let cached)? = bundles[key] { return cached[name] }
+            bundles[key] = .loaded(entries)
+            return entries[name]
+        }
+    }
+
+    private func loadEntries(from bundle: Bundle) -> [String: Entry] {
+        guard let url = bundle.resourceURL?.appendingPathComponent("lookup-validation-manifest.json"),
+              let data = try? Data(contentsOf: url),
+              let manifest = try? JSONDecoder().decode(Manifest.self, from: data),
+              manifest.schemaVersion == 1 else {
+            return [:]
+        }
+        var entries: [String: Entry] = [:]
+        for entry in manifest.assets {
+            guard entries.updateValue(entry, forKey: entry.resourceName) == nil else { return [:] }
+        }
+        return entries
+    }
+}
+
 private final class PreparedColorCube {
     let texture: MTLTexture
     let identity: String
@@ -239,10 +336,17 @@ private final class PreparedColorCube {
         domainMaximum = resource.domainMaximum
     }
 
-    static func load(from url: URL, compact: Bool) throws -> PreparedColorCube {
+    static func load(
+        from url: URL,
+        compact: Bool,
+        bundledResource: (bundle: Bundle, name: String)?
+    ) throws -> PreparedColorCube {
         let context = HarbethContext.shared
         func prepare() throws -> PreparedColorCube {
-            let resource = try C7ColorCube.Resource.readFile(at: url, compact: compact)
+            let entry = compact ? bundledResource.flatMap {
+                BundledLookupManifests.shared.entry(in: $0.bundle, name: $0.name)
+            } : nil
+            let resource = try C7ColorCube.Resource.readFile(at: url, compact: compact, manifestEntry: entry)
             return try PreparedColorCube(resource: resource, device: context.device)
         }
 
@@ -335,8 +439,12 @@ extension C7ColorCube.Resource {
         return nil
     }
 
-    fileprivate static func readFile(at url: URL, compact: Bool) throws -> C7ColorCube.Resource {
-        if compact { return try readCompactResourceStrict(from: url) }
+    fileprivate static func readFile(
+        at url: URL,
+        compact: Bool,
+        manifestEntry: BundledLookupManifests.Entry? = nil
+    ) throws -> C7ColorCube.Resource {
+        if compact { return try loadCompactResource(from: url, manifestEntry: manifestEntry).get() }
         guard let resource = readCubeResource(from: url) else { throw HarbethError.cubeResource }
         return resource
     }
@@ -348,20 +456,18 @@ extension C7ColorCube.Resource {
 
     /// 严格读取紧凑 LUT。损坏、篡改或不符合格式时返回明确错误，调用方不得回退到另一份滤镜资源。
     public static func readCompactResourceStrict(from url: URL) throws -> C7ColorCube.Resource {
-        switch loadCompactResource(from: url) {
-        case .success(let resource):
-            return resource
-        case .failure(let error):
-            throw error
-        }
+        try loadCompactResource(from: url).get()
     }
 
-    static func loadCompactResource(from url: URL) -> Result<C7ColorCube.Resource, HarbethError> {
+    fileprivate static func loadCompactResource(
+        from url: URL,
+        manifestEntry: BundledLookupManifests.Entry? = nil
+    ) -> Result<C7ColorCube.Resource, HarbethError> {
         guard let encoded = try? Data(contentsOf: url) else {
             return .failure(.cubeCompactResourceFailed(reason: "unreadable"))
         }
         do {
-            return .success(try decodeCompactResource(encoded))
+            return .success(try decodeCompactResource(encoded, manifestEntry: manifestEntry))
         } catch let error as HarbethError {
             return .failure(error)
         } catch {
@@ -461,7 +567,10 @@ private extension C7ColorCube.Resource {
         return "cube|\(dimension)|\(domainMinimum)|\(domainMaximum)|\(String(hash, radix: 16))"
     }
 
-    static func decodeCompactResource(_ encoded: Data) throws -> C7ColorCube.Resource {
+    static func decodeCompactResource(
+        _ encoded: Data,
+        manifestEntry: BundledLookupManifests.Entry?
+    ) throws -> C7ColorCube.Resource {
         guard encoded.count >= compactHeaderLength else {
             throw HarbethError.cubeCompactResourceFailed(reason: "invalidHeader")
         }
@@ -509,10 +618,15 @@ private extension C7ColorCube.Resource {
             throw HarbethError.cubeCompactResourceFailed(reason: "invalidPayload")
         }
         let expectedChecksum = Data(bytes[compactChecksumOffset..<(compactChecksumOffset + compactChecksumLength)])
-        guard Data(SHA256.hash(data: decoded)) == expectedChecksum else {
+        let actualChecksum = Data(SHA256.hash(data: decoded))
+        guard actualChecksum == expectedChecksum else {
             throw HarbethError.cubeCompactResourceFailed(reason: "checksumMismatch")
         }
-        let resource = C7ColorCube.Resource(dimension: dimension, data: decoded, domainMinimum: domainMinimum, domainMaximum: domainMaximum)
+        // 只有实际解码后的摘要和域都匹配，才复用包内冻结的旧资源身份。
+        let identity = manifestEntry?.verifiedIdentity(dimension: dimension,
+            minimum: domainMinimum, maximum: domainMaximum, checksum: actualChecksum)
+        let resource = C7ColorCube.Resource(dimension: dimension, data: decoded,
+            domainMinimum: domainMinimum, domainMaximum: domainMaximum, verifiedIdentity: identity)
         guard resource.isValid else { throw HarbethError.cubeCompactResourceFailed(reason: "invalidPayload") }
         return resource
     }

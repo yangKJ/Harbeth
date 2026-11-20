@@ -111,6 +111,52 @@ final class ColorCubeTests: XCTestCase {
         XCTAssertFalse(reloaded.otherInputTextures.first === first)
     }
 
+    func testBundledManifestPreservesIdentityAndRejectsCorruptedPayload() throws {
+        let owner = UUID().uuidString
+        let bundleURL = FileManager.default.temporaryDirectory.appendingPathComponent("\(owner).bundle")
+        defer { try? FileManager.default.removeItem(at: bundleURL) }
+        try FileManager.default.createDirectory(at: bundleURL, withIntermediateDirectories: true)
+        let info = try PropertyListSerialization.data(
+            fromPropertyList: ["CFBundleIdentifier": "tests.cube.\(owner)"], format: .xml, options: 0
+        )
+        try info.write(to: bundleURL.appendingPathComponent("Info.plist"))
+        let resource = try C7ColorCube.Resource.parse(contents: unitIdentityCube)
+        let checksum = SHA256.hash(data: resource.data).map { String(format: "%02x", $0) }.joined()
+        let asset: [String: Any] = [
+            "resourceName": "look", "dimension": resource.dimension, "domainMinimum": [0, 0, 0],
+            "domainMaximum": [1, 1, 1], "float32SHA256": checksum, "resourceIdentity": resource.identity
+        ]
+        let manifest = try JSONSerialization.data(withJSONObject: ["schemaVersion": 1, "assets": [asset]])
+        try manifest.write(to: bundleURL.appendingPathComponent("lookup-validation-manifest.json"))
+        let cubeURL = bundleURL.appendingPathComponent("look.hlut")
+        let compact = try compactLookupData(from: resource)
+        try compact.write(to: cubeURL, options: .atomic)
+        let bundle = try XCTUnwrap(Bundle(url: bundleURL))
+        C7ColorCube.registerBundledLookupManifest(in: bundle)
+
+        let first = C7ColorCube(cubeName: "look", bundle: bundle)
+        XCTAssertEqual(first.resourceIdentity, resource.identity)
+        XCTAssertEqual(first.otherInputTextures.count, 1)
+
+        // HLUT 的样本摘要相同，但范围变化时必须计算真实资源身份。
+        let revised = C7ColorCube.Resource(dimension: resource.dimension, data: resource.data,
+            domainMinimum: SIMD3<Float>(repeating: -0.25))
+        try compactLookupData(from: revised).write(to: cubeURL, options: .atomic)
+        let next = C7ColorCube(cubeName: "look", bundle: bundle)
+        XCTAssertEqual(next.resourceIdentity, revised.identity)
+        XCTAssertNotEqual(next.resourceIdentity, first.resourceIdentity)
+
+        var corrupt = compact
+        corrupt[40] ^= 1
+        try corrupt.write(to: cubeURL, options: .atomic)
+        let invalid = C7ColorCube(cubeName: "look", bundle: bundle)
+        XCTAssertNil(invalid.resourceIdentity)
+        XCTAssertTrue(invalid.otherInputTextures.isEmpty)
+        guard case .cubeCompactResourceFailed(reason: "checksumMismatch")? = invalid.resourceLoadError else {
+            return XCTFail("已注册的指纹表不能掩盖 HLUT 校验失败")
+        }
+    }
+
     func testCubeResourceIdentityParticipatesInRenderRecipeFingerprint() throws {
         let identity = try C7ColorCube.Resource.parse(contents: unitIdentityCube)
         let inverted = try C7ColorCube.Resource.parse(contents: unitIdentityCube.replacingOccurrences(of: "1 0 0", with: "0 1 1"))
