@@ -39,22 +39,34 @@ public struct C7Curves: C7FilterProtocol {
 
     /// RGB曲线控制点，使用C7Point2D（归一化坐标）
     /// RGB curve control points, using C7Point2D (normalized coordinates)
-    public var rgbPoints: [C7Point2D] = []
+    public var rgbPoints: [C7Point2D] = [] {
+        didSet { prepareCubicBindings() }
+    }
 
     /// 红色通道曲线控制点
     /// Red channel curve control points
-    public var redPoints: [C7Point2D] = []
+    public var redPoints: [C7Point2D] = [] {
+        didSet { prepareCubicBindings() }
+    }
 
     /// 绿色通道曲线控制点
     /// Green channel curve control points
-    public var greenPoints: [C7Point2D] = []
+    public var greenPoints: [C7Point2D] = [] {
+        didSet { prepareCubicBindings() }
+    }
 
     /// 蓝色通道曲线控制点
     /// Blue channel curve control points
-    public var bluePoints: [C7Point2D] = []
+    public var bluePoints: [C7Point2D] = [] {
+        didSet { prepareCubicBindings() }
+    }
 
     /// 公共默认保留旧插值，避免未版本化的持久化配方静默改变；新编辑应显式选择插值与通道顺序。
-    public var interpolation: Interpolation
+    public var interpolation: Interpolation {
+        didSet {
+            if interpolation != oldValue { prepareCubicBindings() }
+        }
+    }
     public var extrapolation: Extrapolation
     public var compositionOrder: CompositionOrder
 
@@ -73,21 +85,15 @@ public struct C7Curves: C7FilterProtocol {
         .point
     }
 
+    private var preparedCubicBindings: [KernelParameterBinding]?
+
     public var kernelParameterBindings: [KernelParameterBinding] {
-        var bindings = [
-            KernelParameterBinding(name: "pointCounts", index: 0, stage: .compute, value: .float4(pointCounts)),
-            KernelParameterBinding(name: "rgbPoints", index: 1, stage: .compute, value: .floatArray(flattenedPoints(rgbPoints))),
-            KernelParameterBinding(name: "redPoints", index: 2, stage: .compute, value: .floatArray(flattenedPoints(redPoints))),
-            KernelParameterBinding(name: "greenPoints", index: 3, stage: .compute, value: .floatArray(flattenedPoints(greenPoints))),
-            KernelParameterBinding(name: "bluePoints", index: 4, stage: .compute, value: .floatArray(flattenedPoints(bluePoints)))
-        ]
+        var bindings = preparedCubicBindings ?? pointBindings
         if interpolation != .legacy {
-            bindings.append(KernelParameterBinding(name: "extrapolation", index: 5, stage: .compute,
-                                                   value: .float(extrapolation.rawValue)))
+            bindings.append(KernelParameterBinding(name: "extrapolation", index: 5, stage: .compute, value: .float(extrapolation.rawValue)))
         }
         if interpolation != .legacy || compositionOrder != .rgbThenChannels {
-            bindings.append(KernelParameterBinding(name: "compositionOrder", index: interpolation == .legacy ? 5 : 6,
-                                                   stage: .compute, value: .float(compositionOrder.rawValue)))
+            bindings.append(KernelParameterBinding(name: "compositionOrder", index: interpolation == .legacy ? 5 : 6, stage: .compute, value: .float(compositionOrder.rawValue)))
         }
         return bindings
     }
@@ -96,8 +102,7 @@ public struct C7Curves: C7FilterProtocol {
         KernelPixelContract(
             inputAlphaExpectation: interpolation == .shapePreserving ? .premultiplied : .preserveInput,
             precision: .float32,
-            dynamicRangeBehavior: interpolation != .legacy && extrapolation == .linear
-                ? .preservesExtendedRange : .unspecified,
+            dynamicRangeBehavior: interpolation != .legacy && extrapolation == .linear ? .preservesExtendedRange : .unspecified,
             samplingFootprint: .point,
             fusionPolicy: .pointwise
         )
@@ -113,6 +118,54 @@ public struct C7Curves: C7FilterProtocol {
 
     private func flattenedPoints(_ points: [C7Point2D]) -> [Float] {
         points.flatMap { [$0.x, $0.y] }
+    }
+
+    private var pointBindings: [KernelParameterBinding] {
+        [
+            KernelParameterBinding(name: "pointCounts", index: 0, stage: .compute, value: .float4(pointCounts)),
+            KernelParameterBinding(name: "rgbPoints", index: 1, stage: .compute, value: .floatArray(flattenedPoints(rgbPoints))),
+            KernelParameterBinding(name: "redPoints", index: 2, stage: .compute, value: .floatArray(flattenedPoints(redPoints))),
+            KernelParameterBinding(name: "greenPoints", index: 3, stage: .compute, value: .floatArray(flattenedPoints(greenPoints))),
+            KernelParameterBinding(name: "bluePoints", index: 4, stage: .compute, value: .floatArray(flattenedPoints(bluePoints)))
+        ]
+    }
+
+    private mutating func prepareCubicBindings() {
+        guard interpolation == .shapePreserving else {
+            preparedCubicBindings = nil
+            return
+        }
+        // 前四项由各通道保存切线的绝对偏移，0 使用原解析路径，-1 为单位曲线。
+        var slopes: [Float] = [0, 0, 0, 0]
+        for (channel, points) in [rgbPoints, redPoints, greenPoints, bluePoints].enumerated() {
+            if points.count == 2, points[0].x == 0, points[0].y == 0, points[1].x == 1, points[1].y == 1 {
+                slopes[channel] = -1
+            } else if let tangents = Self.cubicTangents(points) {
+                slopes[channel] = Float(slopes.count)
+                slopes.append(contentsOf: tangents)
+            }
+        }
+        preparedCubicBindings = pointBindings + [
+            KernelParameterBinding(name: "preparedTangents", index: 8, stage: .compute, value: .floatArray(slopes))
+        ]
+    }
+
+    private static func cubicTangents(_ points: [C7Point2D]) -> [Float]? {
+        guard points.count >= 2 else { return nil }
+        var secants: [Float] = []
+        secants.reserveCapacity(points.count - 1)
+        for (a, b) in zip(points, points.dropFirst()) {
+            let width = b.x - a.x
+            guard width.isNormal, width > 0 else { return nil }
+            let secant = (b.y - a.y) / width
+            guard secant == 0 || secant.isNormal else { return nil }
+            secants.append(secant)
+        }
+        return points.indices.map { index in
+            let before = secants[max(0, index - 1)]
+            let after = secants[min(secants.count - 1, index)]
+            return before * after > 0 ? 2 / (1 / before + 1 / after) : 0
+        }
     }
 
     public init(
@@ -159,12 +212,12 @@ public struct C7Curves: C7FilterProtocol {
                 C7Point2D(x: 1.0, y: 1.0)
             ]
         }
+        prepareCubicBindings()
     }
 
     /// 与平滑GPU算子相同的保持形状Hermite求值，供控制图与数值验证复用。
     /// 平滑模式在每个区间内不越过相邻控制点，域外可选择端点保持或线性外推。
-    public static func shapePreservingValue(_ value: Float, points: [C7Point2D],
-                                         extrapolation: Extrapolation = .clampToEndpoints) -> Float {
+    public static func shapePreservingValue(_ value: Float, points: [C7Point2D], extrapolation: Extrapolation = .clampToEndpoints) -> Float {
         guard value.isFinite, points.count >= 2,
               points.allSatisfy({ $0.x.isFinite && $0.y.isFinite }),
               zip(points, points.dropFirst()).allSatisfy({ $0.x < $1.x }) else { return value }

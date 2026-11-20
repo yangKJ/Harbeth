@@ -350,6 +350,87 @@ final class FilterPrimitiveCoverageTests: XCTestCase {
         }
     }
 
+    func testPreparedCurvesMatchUnpreparedGPUAcrossOrdersAndDomains() throws {
+        let points = [
+            C7Point2D(x: 0, y: 0.02),
+            C7Point2D(x: 0.12, y: 0.03),
+            C7Point2D(x: 0.4, y: 0.76),
+            C7Point2D(x: 0.8, y: 0.58),
+            C7Point2D(x: 1, y: 0.95)
+        ]
+        let inputs: [Float16] = (0...1024).flatMap { index -> [Float16] in
+            let value = Float(index) / 512 - 0.5
+            let alpha: Float = [0, 0.25, 0.5, 1][index % 4]
+            return [Float16(value * alpha), Float16((1 - value) * alpha), Float16(value * 0.5 * alpha), Float16(alpha)]
+        }
+        let source = try makeRGBA16FloatTexture(width: inputs.count / 4, pixels: inputs)
+
+        for order in [C7Curves.CompositionOrder.rgbThenChannels, .channelsThenRGB] {
+            for extrapolation in [C7Curves.Extrapolation.clampToEndpoints, .linear] {
+                let activeMaster = C7Curves(
+                    rgbPoints: points,
+                    redPoints: points,
+                    greenPoints: [],
+                    interpolation: .shapePreserving,
+                    extrapolation: extrapolation,
+                    compositionOrder: order
+                )
+                var unitMaster = activeMaster
+                unitMaster.rgbPoints = C7Curves().rgbPoints
+                var repeatedKnot = unitMaster
+                repeatedKnot.redPoints.insert(points[1], at: 1)
+                for filter in [activeMaster, unitMaster, repeatedKnot] {
+                    let reference = try HarbethIO(element: source, filter: UnpreparedCurves(filter: filter))
+                        .renderTexture(profile: .exportQuality)
+                    let actual = try HarbethIO(element: source, filter: filter).renderTexture(profile: .exportQuality)
+                    let pixels = try rgba16FloatPixels(in: actual)
+                    for (index, expected) in try rgba16FloatPixels(in: reference).enumerated() {
+                        let tolerance = index % 4 == 3 ? 0 : Float(Float16(expected).ulp)
+                        XCTAssertEqual(pixels[index], expected, accuracy: tolerance, "通道分量 \(index)")
+                    }
+                }
+            }
+        }
+    }
+
+    func testPreparedCurvesRefreshAfterPointMutationAndModeSwitch() throws {
+        var edit = C7Curves(interpolation: .shapePreserving)
+        let original = edit
+        edit.redPoints.insert(C7Point2D(x: 0.5, y: 0.2), at: 1)
+        let current = C7Curves(redPoints: edit.redPoints, interpolation: .shapePreserving)
+        XCTAssertEqual(edit.kernelParameterBindings, current.kernelParameterBindings)
+        XCTAssertNotEqual(original.kernelParameterBindings, current.kernelParameterBindings)
+        edit.interpolation = .linear
+        XCTAssertEqual(edit.kernelParameterBindings, C7Curves(redPoints: edit.redPoints, interpolation: .linear).kernelParameterBindings)
+        edit.redPoints[1].y = 0.8
+        edit.interpolation = .shapePreserving
+        XCTAssertEqual(edit.kernelParameterBindings, C7Curves(redPoints: edit.redPoints, interpolation: .shapePreserving).kernelParameterBindings)
+
+        let source = try makeRGBA16FloatTexture(width: 1, pixels: [0.5, 0.5, 0.5, 1])
+        let output = try ImageNode.texture(source).applying(edit).makeFrame(profile: .exportQuality)
+        let pixels = try rgba16FloatPixels(in: output.texture)
+        XCTAssertEqual(pixels[0], Float(Float16(0.8)), accuracy: 0.001)
+        XCTAssertEqual(Array(pixels.dropFirst()), [0.5, 0.5, 1])
+    }
+
+    private struct UnpreparedCurves: C7FilterProtocol {
+        let filter: C7Curves
+
+        var modifier: ModifierEnum { filter.modifier }
+        var memoryAccessPattern: MemoryAccessPattern { filter.memoryAccessPattern }
+        var kernelPixelContract: KernelPixelContract { filter.kernelPixelContract }
+        var kernelOutputContract: RenderOutputContract { filter.kernelOutputContract }
+
+        var kernelParameterBindings: [KernelParameterBinding] {
+            filter.kernelParameterBindings.map { binding in
+                if binding.index == 8 {
+                    return KernelParameterBinding(name: binding.name, index: 8, stage: .compute, value: .floatArray([0, 0, 0, 0]))
+                }
+                return binding
+            }
+        }
+    }
+
     func testCurvesWithEmptyChannelsKeepValidMetalBindings() throws {
         let source = try makeRGBA16FloatTexture(width: 1, pixels: [0.25, 0.5, 0.75, 1])
         for interpolation: C7Curves.Interpolation in [.legacy, .linear, .shapePreserving] {
