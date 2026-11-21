@@ -249,6 +249,7 @@ kernel void C7SelectiveHSLPhotographicHighlights(texture2d<half, access::write> 
                                                 constant float4 &highlightUpperTone [[buffer(9)]],
                                                 constant float &highlightUpperGreenAmount [[buffer(10)]],
                                                 constant float4 &highlightBlueClip [[buffer(11)]],
+                                                constant float3 &highlightLuminanceCorrection [[buffer(13)]],
                                                 uint2 grid [[thread_position_in_grid]]) {
     if (grid.x >= outputTexture.get_width() || grid.y >= outputTexture.get_height()) return;
     const half4 input = inputTexture.read(grid);
@@ -260,8 +261,24 @@ kernel void C7SelectiveHSLPhotographicHighlights(texture2d<half, access::write> 
     float3 color = selectiveHSLColor(float3(input.rgb) / alpha, adjustments, true);
     color = applySelectiveHSLColorWindow(color, hueEdges, colorAdjustment, windowTone, windowLightnessSaturation);
     color = finishPhotographicNeutral(color, neutralShadows, neutralHighlights);
+    const float3 before = color;
     color = neutralizeCoolHighlights(color, highlightToneEdges, highlightChromaEdges, highlightCyanAndAmount,
                                      highlightUpperTone, highlightUpperGreenAmount, highlightBlueClip);
+    if (highlightLuminanceCorrection.z > 0.0f && any(color != before)
+        && all(before >= 0.0f) && all(color >= 0.0f) && all(color <= 1.0f)) {
+        const float3 weights = float3(0.2126729f, 0.7151522f, 0.0721750f);
+        const float3 linear = select(color / 12.92f, pow((color + 0.055f) / 1.055f, 2.4f), color > 0.04045f);
+        const float luminance = dot(linear, weights);
+        if (luminance > highlightLuminanceCorrection.x) {
+            const float3 earlier = select(before / 12.92f, pow((before + 0.055f) / 1.055f, 2.4f), before > 0.04045f);
+            const float added = max(0.0f, luminance - dot(earlier, weights));
+            const float weight = smoothstep(highlightLuminanceCorrection.x, highlightLuminanceCorrection.y, luminance);
+            // 按同一比例缩放线性通道，只抵消去色阶段增加的亮度。
+            const float factor = 1.0f - highlightLuminanceCorrection.z * weight * added / luminance;
+            const float3 mapped = linear * factor;
+            color = select(12.92f * mapped, 1.055f * pow(mapped, 1.0f / 2.4f) - 0.055f, mapped > 0.0031308f);
+        }
+    }
     outputTexture.write(half4(half3(color * alpha), input.a), grid);
 }
 
@@ -321,8 +338,33 @@ static float3 applyLabColorWindow(float3 rgb, float4 hueEdges, float4 edges, flo
     return select(12.92f * output, 1.055f * pow(output, 1.0f / 2.4f) - 0.055f, output > 0.0031308f);
 }
 
-static float3 applyLabCorrections(float3 rgb, constant float *parameters) {
-    const uint count = min(uint(parameters[0]), 12u);
+constant bool hslLabGradientSpecialization [[function_constant(0)]];
+constant bool hslLabHasGradient = is_function_constant_defined(hslLabGradientSpecialization)
+    ? hslLabGradientSpecialization : false;
+
+static float labGradientLuma(texture2d<half, access::read> input, int2 point, int2 limit, float fallback) {
+    const float4 pixel = float4(input.read(uint2(clamp(point, int2(0), limit))));
+    return pixel.a > 0.0f ? 100.0f * dot(pixel.rgb / pixel.a, float3(0.2126f, 0.7152f, 0.0722f)) : fallback;
+}
+
+static float labLocalLuminanceGradient(texture2d<half, access::read> input, int2 point, int radius) {
+    const int2 limit = int2(input.get_width(), input.get_height()) - 1;
+    const float center = labGradientLuma(input, point, limit, 0.0f);
+    const float a = labGradientLuma(input, point + int2(-radius, -radius), limit, center);
+    const float b = labGradientLuma(input, point + int2(      0, -radius), limit, center);
+    const float c = labGradientLuma(input, point + int2( radius, -radius), limit, center);
+    const float d = labGradientLuma(input, point + int2(-radius,       0), limit, center);
+    const float f = labGradientLuma(input, point + int2( radius,       0), limit, center);
+    const float g = labGradientLuma(input, point + int2(-radius,  radius), limit, center);
+    const float h = labGradientLuma(input, point + int2(      0,  radius), limit, center);
+    const float i = labGradientLuma(input, point + int2( radius,  radius), limit, center);
+    return length(float2((c - a) + 2.0f * (f - d) + (i - g), (g - a) + 2.0f * (h - b) + (i - c))) * 0.125f;
+}
+
+static float3 applyLabCorrections(float3 rgb, constant float *parameters,
+                                  texture2d<half, access::read> input, uint2 grid, int radius,
+                                  constant float *gradientEdges) {
+    const uint count = min(uint(parameters[0]), 30u);
     if (count == 0 || !all(isfinite(rgb))) return rgb;
     const bool extended = any(rgb > 1.0f);
     if (extended && parameters[1] == 0.0f) return rgb;
@@ -343,6 +385,7 @@ static float3 applyLabCorrections(float3 rgb, constant float *parameters) {
     const float hue = (angle < 0.0f ? angle + 6.283185307f : angle) * 57.295779513f;
     float3 change = 0.0f;
     bool mapHighlights = false;
+    float localGradient = -1.0f;
     for (uint index = 0; index < count; index++) {
         constant float *window = parameters + 2 + index * 16;
         const bool mapsHighlights = window[15] > 0.0f;
@@ -353,7 +396,14 @@ static float3 applyLabCorrections(float3 rgb, constant float *parameters) {
             * smoothstep(window[4], window[5], chroma)
             * (1.0f - smoothstep(window[6], window[7], light));
         const float chromaFade = window[14] > window[13] ? 1.0f - smoothstep(window[13], window[14], chroma) : 1.0f;
-        const float amount = weight * minimumLightness * chromaFade;
+        float amount = weight * minimumLightness * chromaFade;
+        if (hslLabHasGradient && amount > 0.0f) {
+            const float2 edges = float2(gradientEdges[index * 2], gradientEdges[index * 2 + 1]);
+            if (edges.y > edges.x) {
+                if (localGradient < 0.0f) localGradient = labLocalLuminanceGradient(input, int2(grid), radius);
+                amount *= 1.0f - smoothstep(edges.x, edges.y, localGradient);
+            }
+        }
         change += amount * float3(window[8], window[9], window[10]);
         mapHighlights = mapHighlights || (mapsHighlights && amount > 0.0f);
     }
@@ -429,6 +479,8 @@ kernel void C7SelectiveHSLPhotographicLabColorWindowRefined(texture2d<half, acce
                                                      constant float3 &labLow [[buffer(8)]],
                                                      constant float3 &labHigh [[buffer(9)]],
                                                      constant float *labCorrections [[buffer(10)]],
+                                                     constant float *labGradientFadeEdges [[buffer(13), function_constant(hslLabHasGradient)]],
+                                                     constant float4 *region [[buffer(30), function_constant(hslLabHasGradient)]],
                                                      uint2 grid [[thread_position_in_grid]]) {
     if (grid.x >= outputTexture.get_width() || grid.y >= outputTexture.get_height()) return;
     const half4 input = inputTexture.read(grid);
@@ -444,7 +496,9 @@ kernel void C7SelectiveHSLPhotographicLabColorWindowRefined(texture2d<half, acce
     const half3 original = half3(color * alpha);
     const float3 straight = float3(original) / alpha;
     const float3 legacy = applyLabColorWindow(straight, labHueEdges, labChromaAndHighlightEdges, labLow, labHigh);
-    const float3 adjusted = applyLabCorrections(legacy, labCorrections);
+    // 全图长边决定采样间距，分块执行沿用同一个半径。
+    const int radius = hslLabHasGradient ? int(clamp(round(max(region[0].z, region[0].w) / 945.0f), 1.0f, 9.0f)) : 0;
+    const float3 adjusted = applyLabCorrections(legacy, labCorrections, inputTexture, grid, radius, labGradientFadeEdges);
     outputTexture.write(half4(all(adjusted == straight) ? original : half3(adjusted * alpha), input.a), grid);
 }
 

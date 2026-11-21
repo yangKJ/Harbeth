@@ -76,7 +76,7 @@ public struct C7SelectiveHSL: C7FilterProtocol {
 
     /// 对显示色域内指定的色相与色度区间，分别校正 Lab 明度、色度和色相。
     public struct LabColorCorrection: Codable, Hashable, Sendable {
-        public static let maximumCount = 12
+        public static let maximumCount = 30
 
         public let hueEdges: SIMD4<Float>
         public let chromaEdges: SIMD2<Float>
@@ -85,6 +85,8 @@ public struct C7SelectiveHSL: C7FilterProtocol {
         public let minimumLightnessEdges: SIMD2<Float>?
         /// 可选的高色度渐退区间。未指定时，色度超过渐入区间后保持全强度。
         public let chromaFadeEdges: SIMD2<Float>?
+        /// 局部亮度梯度的渐退区间，保留纹理较强的同色像素。
+        public let localLuminanceGradientFadeEdges: SIMD2<Float>?
         /// 校正触及正色域上限的高光颜色，同时保留已扩展的 RGB 通道。
         public let mapsHighlightsAtGamutBoundary: Bool?
         /// L* 增量、色度增量、色相角度增量。
@@ -97,7 +99,8 @@ public struct C7SelectiveHSL: C7FilterProtocol {
             delta: SIMD3<Float>,
             minimumLightnessEdges: SIMD2<Float>? = nil,
             chromaFadeEdges: SIMD2<Float>? = nil,
-            mapsHighlightsAtGamutBoundary: Bool? = nil
+            mapsHighlightsAtGamutBoundary: Bool? = nil,
+            localLuminanceGradientFadeEdges: SIMD2<Float>? = nil
         ) {
             self.hueEdges = hueEdges
             self.chromaEdges = chromaEdges
@@ -105,6 +108,7 @@ public struct C7SelectiveHSL: C7FilterProtocol {
             self.minimumLightnessEdges = minimumLightnessEdges
             self.chromaFadeEdges = chromaFadeEdges
             self.mapsHighlightsAtGamutBoundary = mapsHighlightsAtGamutBoundary
+            self.localLuminanceGradientFadeEdges = localLuminanceGradientFadeEdges
             self.delta = delta
             guard isValid else { return nil }
         }
@@ -116,6 +120,9 @@ public struct C7SelectiveHSL: C7FilterProtocol {
             if let chromaFadeEdges,
                !(chromaFadeEdges.x >= chromaEdges.y && chromaFadeEdges.x < chromaFadeEdges.y
                  && chromaFadeEdges.y <= 128) { return false }
+
+            if let edges = localLuminanceGradientFadeEdges,
+               !(edges.x >= 0 && edges.x < edges.y && edges.y <= 128) { return false }
 
             return hueEdges.x >= 0 && hueEdges.x < hueEdges.y && hueEdges.y <= hueEdges.z
                 && hueEdges.z < hueEdges.w && hueEdges.w <= 360
@@ -177,6 +184,8 @@ public struct C7SelectiveHSL: C7FilterProtocol {
         public let cyanEdges: SIMD2<Float>
         /// 在较低亮度收紧色度渐退边界，达到完整亮度时回到原边界。
         public let lowerToneChromaScale: Float
+        /// 渐入边界用线性相对亮度，末项为回收的高光增亮比例。
+        public let luminanceCorrection: SIMD3<Float>
         public let upperToneExpansion: UpperToneExpansion?
 
         /// 在更亮的区域扩展色度渐退，单独控制新增绿通道增益。
@@ -214,7 +223,8 @@ public struct C7SelectiveHSL: C7FilterProtocol {
             chromaEdges: SIMD4<Float>,
             cyanEdges: SIMD2<Float>,
             lowerToneChromaScale: Float = 1,
-            upperToneExpansion: UpperToneExpansion? = nil
+            upperToneExpansion: UpperToneExpansion? = nil,
+            luminanceCorrection: SIMD3<Float> = .zero
         ) {
             let pairedEdges = [greenEdges, blueEdges, cyanEdges]
             guard (0...1).contains(amount),
@@ -232,6 +242,10 @@ public struct C7SelectiveHSL: C7FilterProtocol {
             self.blueEdges = blueEdges
             self.chromaEdges = chromaEdges
             self.cyanEdges = cyanEdges
+            guard luminanceCorrection == .zero
+                || ((0...1).contains(luminanceCorrection.z) && luminanceCorrection.x >= 0
+                    && luminanceCorrection.x < luminanceCorrection.y && luminanceCorrection.y <= 1) else { return nil }
+            self.luminanceCorrection = luminanceCorrection
             self.lowerToneChromaScale = lowerToneChromaScale
             self.upperToneExpansion = upperToneExpansion
         }
@@ -342,6 +356,7 @@ public struct C7SelectiveHSL: C7FilterProtocol {
                 .init(name: "highlightUpperTone", index: 9, stage: .compute, value: .float4(expansion)),
                 .init(name: "highlightUpperGreenAmount", index: 10, stage: .compute, value: .float(upper?.greenAmount ?? 1)),
                 .init(name: "highlightBlueClip", index: 11, stage: .compute, value: .float4(upper?.blueClipExpansion ?? .zero)),
+                .init(name: "highlightLuminanceCorrection", index: 13, stage: .compute, value: .float3(highlight.luminanceCorrection)),
             ]
         }
         if response == .photographicNeutral, let lab = labColorWindow {
@@ -357,13 +372,35 @@ public struct C7SelectiveHSL: C7FilterProtocol {
                 let header: [Float] = [Float(lab.corrections.count), mapsHighlights ? 1 : 0]
                 bindings.append(.init(name: "labCorrections", index: 10, stage: .compute,
                     value: .floatArray(header + lab.corrections.flatMap(\.parameterValues))))
+                if usesLabLocalLuminanceGradient {
+                    let edges = lab.corrections.flatMap { correction -> [Float] in
+                        let fade = correction.localLuminanceGradientFadeEdges ?? .zero
+                        return [fade.x, fade.y]
+                    }
+                    bindings.append(.init(name: "labGradientFadeEdges", index: 13, stage: .compute, value: .floatArray(edges)))
+                }
             }
         }
         return bindings
     }
 
+    public static let maximumLabGradientRadius = 9
+
+    private var usesLabLocalLuminanceGradient: Bool {
+        response == .photographicNeutral && highlightNeutralization == nil
+            && labColorWindow?.corrections.contains { $0.localLuminanceGradientFadeEdges != nil } == true
+    }
+
+    public var computeKernelFunctionConstants: [KernelFunctionConstantDescriptor] {
+        usesLabLocalLuminanceGradient ? [.init(name: "hslLabGradientSpecialization", index: 0, value: .bool(true))] : []
+    }
+
     public var memoryAccessPattern: MemoryAccessPattern {
-        .point
+        usesLabLocalLuminanceGradient ? .neighborhood : .point
+    }
+
+    public var samplingFootprint: SamplingFootprint {
+        usesLabLocalLuminanceGradient ? .neighborhood(radius: Self.maximumLabGradientRadius) : .point
     }
 
     public var kernelPixelContract: KernelPixelContract {
@@ -374,8 +411,10 @@ public struct C7SelectiveHSL: C7FilterProtocol {
             inputAlphaExpectation: .premultiplied,
             precision: .float32,
             dynamicRangeBehavior: .preservesExtendedRange,
-            samplingFootprint: .point,
-            fusionPolicy: .pointwise
+            samplingFootprint: samplingFootprint,
+            coordinateDependency: usesLabLocalLuminanceGradient ? .fullImage : .local,
+            globalDependency: usesLabLocalLuminanceGradient ? .imageDimensions : .none,
+            fusionPolicy: usesLabLocalLuminanceGradient ? .disabled : .pointwise
         )
     }
 
